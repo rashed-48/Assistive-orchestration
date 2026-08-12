@@ -1,0 +1,101 @@
+sentence,intent
+I think I am ready to sleep,PREPARE_FOR_SLEEP
+Please get me ready for bedtime,PREPARE_FOR_SLEEP
+I am feeling sleepy and want to go to bed,PREPARE_FOR_SLEEP
+I would like to prepare for sleep,PREPARE_FOR_SLEEP
+I am heading to bed soon,PREPARE_FOR_SLEEP
+Help me get ready for the night,PREPARE_FOR_SLEEP
+I want to settle down for the night,PREPARE_FOR_SLEEP
+I am going to sleep shortly,PREPARE_FOR_SLEEP
+Please prepare everything for bedtime,PREPARE_FOR_SLEEP
+I need to prepare myself for sleep,PREPARE_FOR_SLEEP
+I would like to leave the room,LEAVE_ROOM
+Please help me exit the room,LEAVE_ROOM
+I want to go outdoors,LEAVE_ROOM
+Help me get outside the room,LEAVE_ROOM
+I need to get out of this room,LEAVE_ROOM
+I would like to go outside now,LEAVE_ROOM
+Please take me outside,LEAVE_ROOM
+I want to exit this area,LEAVE_ROOM
+Help me leave this place,LEAVE_ROOM
+I would like to go outdoors for a while,LEAVE_ROOM
+I want to come back inside,RETURN_TO_ROOM
+Please take me back to my room,RETURN_TO_ROOM
+Help me return indoors,RETURN_TO_ROOM
+I would like to go back inside,RETURN_TO_ROOM
+Please bring me back to the room,RETURN_TO_ROOM
+I need to return to my room,RETURN_TO_ROOM
+Help me get back indoors,RETURN_TO_ROOM
+I want to come back to my room,RETURN_TO_ROOM
+Take me back inside please,RETURN_TO_ROOM
+I would like to return to the room,RETURN_TO_ROOM
+I am ready for my meal,PREPARE_FOR_MEAL
+Please get my food ready,PREPARE_FOR_MEAL
+I would like to eat now,PREPARE_FOR_MEAL
+Get everything ready for lunch,PREPARE_FOR_MEAL
+I am ready for dinner,PREPARE_FOR_MEAL
+Please prepare something for me to eat,PREPARE_FOR_MEAL
+I would like to have my meal now,PREPARE_FOR_MEAL
+Please get the dining area ready,PREPARE_FOR_MEAL
+I am hungry and want my meal,PREPARE_FOR_MEAL
+Prepare my food please,PREPARE_FOR_MEAL
+I should take my medication now,MEDICATION
+Please help me with my pills,MEDICATION
+My medicine is due now,MEDICATION
+I need to take my prescribed medicine,MEDICATION
+Please get my medication ready,MEDICATION
+It is time for my pills,MEDICATION
+I need my medicine at the moment,MEDICATION
+I should take my pills now,MEDICATION
+Please remind me to take my medication,MEDICATION
+I need assistance with my medicine,MEDICATION
+I need to work on my studies,STUDY_MODE
+I have studying to do,STUDY_MODE
+I need to concentrate on my academic work,STUDY_MODE
+I want to start working on my assignment,STUDY_MODE
+I need to prepare for my classes,STUDY_MODE
+I have an exam to prepare for,STUDY_MODE
+I want to focus on my schoolwork,STUDY_MODE
+I need to study for an upcoming test,STUDY_MODE
+I have some academic work to complete,STUDY_MODE
+I want to begin my study session,STUDY_MODE
+I want to unwind for a little while,RELAX_MODE
+I would like some time to relax,RELAX_MODE
+I want to take things easy,RELAX_MODE
+Please make the environment relaxing,RELAX_MODE
+I need a peaceful environment,RELAX_MODE
+I would like to rest without going to sleep,RELAX_MODE
+I want to spend some time relaxing,RELAX_MODE
+I need some quiet time for myself,RELAX_MODE
+I want to sit back and relax,RELAX_MODE
+Please make things comfortable around me,RELAX_MODE
+I need help immediately,EMERGENCY
+Something serious is happening,EMERGENCY
+I am in a dangerous situation,EMERGENCY
+Please come quickly,EMERGENCY
+I need urgent assistance,EMERGENCY
+There is a serious problem here,EMERGENCY
+I need someone to help me right away,EMERGENCY
+Please respond immediately,EMERGENCY
+Something has gone terribly wrong,EMERGENCY
+I am in trouble and need help,EMERGENCY
+Please switch everything off,SHUTDOWN_ENVIRONMENT
+Turn all connected devices off,SHUTDOWN_ENVIRONMENT
+I want the environment powered down,SHUTDOWN_ENVIRONMENT
+Please stop all the active devices,SHUTDOWN_ENVIRONMENT
+Switch off the devices around me,SHUTDOWN_ENVIRONMENT
+Shut everything down now,SHUTDOWN_ENVIRONMENT
+I want all systems turned off,SHUTDOWN_ENVIRONMENT
+Power down the environment,SHUTDOWN_ENVIRONMENT
+Please turn off all equipment,SHUTDOWN_ENVIRONMENT
+Stop everything that is currently running,SHUTDOWN_ENVIRONMENT
+I am awake now,WAKE_UP
+I have just gotten out of bed,WAKE_UP
+I have woken up for the day,WAKE_UP
+I am no longer asleep,WAKE_UP
+I just got up,WAKE_UP
+I have started my morning,WAKE_UP
+I am awake and ready to begin,WAKE_UP
+I have finished sleeping,WAKE_UP
+I am up and ready for the day,WAKE_UP
+I have just awakened,WAKE_UP

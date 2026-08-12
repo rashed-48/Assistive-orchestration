@@ -1,0 +1,170 @@
+sentence,intent
+I'm going to sleep,PREPARE_FOR_SLEEP
+I want to go to bed,PREPARE_FOR_SLEEP
+I'm tired and want to rest,PREPARE_FOR_SLEEP
+I need to sleep,PREPARE_FOR_SLEEP
+Prepare the room for bedtime,PREPARE_FOR_SLEEP
+I want to leave the room,LEAVE_ROOM
+I need to go outside,LEAVE_ROOM
+Let's leave the room,LEAVE_ROOM
+I want to go out,LEAVE_ROOM
+I'm leaving now,LEAVE_ROOM
+I want to come back to my room,RETURN_TO_ROOM
+Take me back to the room,RETURN_TO_ROOM
+I want to return to my room,RETURN_TO_ROOM
+I'm coming back to the room,RETURN_TO_ROOM
+Let's go back inside,RETURN_TO_ROOM
+Prepare everything for my meal,PREPARE_FOR_MEAL
+I'm ready to eat,PREPARE_FOR_MEAL
+I want to have my meal,PREPARE_FOR_MEAL
+Prepare the dining area,PREPARE_FOR_MEAL
+It's time for my meal,PREPARE_FOR_MEAL
+I need my medicine,MEDICATION
+It's time to take my medicine,MEDICATION
+I need to take my medication,MEDICATION
+Bring me my medicine,MEDICATION
+I need my medication now,MEDICATION
+I want to study,STUDY_MODE
+Prepare my study area,STUDY_MODE
+I'm going to study,STUDY_MODE
+Let's start studying,STUDY_MODE
+I need a quiet place to study,STUDY_MODE
+I want to relax,RELAX_MODE
+Help me relax,RELAX_MODE
+I need some quiet time,RELAX_MODE
+I want to rest,RELAX_MODE
+Let's make the room comfortable,RELAX_MODE
+This is an emergency,EMERGENCY
+I need help immediately,EMERGENCY
+Something is wrong,EMERGENCY
+Help me now,EMERGENCY
+Emergency situation,EMERGENCY
+Shut everything down,SHUTDOWN_ENVIRONMENT
+Turn everything off,SHUTDOWN_ENVIRONMENT
+I want the environment shut down,SHUTDOWN_ENVIRONMENT
+Turn off all devices,SHUTDOWN_ENVIRONMENT
+Switch everything off,SHUTDOWN_ENVIRONMENT
+I'm awake now,WAKE_UP
+I just woke up,WAKE_UP
+Good morning,WAKE_UP
+I'm ready to get up,WAKE_UP
+I want to start my day,WAKE_UP
+I'm in danger,EMERGENCY
+Something bad has happened,EMERGENCY
+Something terrible happened,EMERGENCY
+I need immediate assistance,EMERGENCY
+Please help me quickly,EMERGENCY
+I need help right now,EMERGENCY
+I am in trouble,EMERGENCY
+There is a serious problem,EMERGENCY
+I need urgent help,EMERGENCY
+Please come and help me,EMERGENCY
+I need assistance immediately,EMERGENCY
+Something is seriously wrong,EMERGENCY
+I need someone to help me,EMERGENCY
+Please respond immediately,EMERGENCY
+I cannot handle this situation,EMERGENCY
+There is an urgent situation,EMERGENCY
+I need help urgently,EMERGENCY
+Something has gone very wrong,EMERGENCY
+I need assistance now,EMERGENCY
+This situation is dangerous,EMERGENCY
+
+I am ready for bed,PREPARE_FOR_SLEEP
+I think it is time to sleep,PREPARE_FOR_SLEEP
+I am getting ready to sleep,PREPARE_FOR_SLEEP
+I want to prepare for bedtime,PREPARE_FOR_SLEEP
+I am going to bed soon,PREPARE_FOR_SLEEP
+I need to get ready for bed,PREPARE_FOR_SLEEP
+It is almost bedtime,PREPARE_FOR_SLEEP
+I want to sleep now,PREPARE_FOR_SLEEP
+I am feeling sleepy,PREPARE_FOR_SLEEP
+Help me prepare for the night,PREPARE_FOR_SLEEP
+
+I want to unwind,RELAX_MODE
+I need to unwind for a while,RELAX_MODE
+I want to take it easy,RELAX_MODE
+I need some time to relax,RELAX_MODE
+I just want to chill for a while,RELAX_MODE
+Make the environment relaxing,RELAX_MODE
+I want a comfortable environment,RELAX_MODE
+I need some quiet time,RELAX_MODE
+I want to sit and relax,RELAX_MODE
+I want to relax without going to sleep,RELAX_MODE
+
+I need to focus on my coursework,STUDY_MODE
+I have some coursework to finish,STUDY_MODE
+I need to concentrate on my studies,STUDY_MODE
+I have an assignment to work on,STUDY_MODE
+I need to do some academic work,STUDY_MODE
+I have to prepare for my exam,STUDY_MODE
+I need a quiet environment for studying,STUDY_MODE
+I need to focus on my assignment,STUDY_MODE
+I have some studying to do,STUDY_MODE
+I want to work on my studies,STUDY_MODE
+
+I have just gotten out of bed,WAKE_UP
+I am awake now,WAKE_UP
+I just woke up this morning,WAKE_UP
+I have finished sleeping,WAKE_UP
+I am no longer asleep,WAKE_UP
+I am up now,WAKE_UP
+I have woken up,WAKE_UP
+I am awake and ready to begin,WAKE_UP
+I just got up,WAKE_UP
+I am starting my morning,WAKE_UP
+
+I need to leave this room,LEAVE_ROOM
+Help me get out of here,LEAVE_ROOM
+I want to go outside,LEAVE_ROOM
+I want to leave this area,LEAVE_ROOM
+Help me go outside,LEAVE_ROOM
+I need to get out of the room,LEAVE_ROOM
+I want to go outdoors,LEAVE_ROOM
+I need to leave now,LEAVE_ROOM
+Take me outside,LEAVE_ROOM
+I want to exit the room,LEAVE_ROOM
+
+I want to come back inside,RETURN_TO_ROOM
+Help me return to my room,RETURN_TO_ROOM
+Take me back inside,RETURN_TO_ROOM
+I want to go back to my room,RETURN_TO_ROOM
+I need to return indoors,RETURN_TO_ROOM
+Bring me back to the room,RETURN_TO_ROOM
+I want to come back to the room,RETURN_TO_ROOM
+Help me get back inside,RETURN_TO_ROOM
+I need to go back indoors,RETURN_TO_ROOM
+Take me back to my room,RETURN_TO_ROOM
+
+I need to take my pills,MEDICATION
+I need my medication now,MEDICATION
+It is time for my pills,MEDICATION
+I have to take my medicine,MEDICATION
+I need help with my medication,MEDICATION
+Please get my medicine,MEDICATION
+I need my pills right now,MEDICATION
+My medication is due,MEDICATION
+I should take my medicine now,MEDICATION
+Please prepare my medication,MEDICATION
+
+I am hungry and ready to eat,PREPARE_FOR_MEAL
+Please prepare my meal,PREPARE_FOR_MEAL
+I want to have dinner,PREPARE_FOR_MEAL
+I am ready for lunch,PREPARE_FOR_MEAL
+Get things ready for my meal,PREPARE_FOR_MEAL
+It is time to eat,PREPARE_FOR_MEAL
+I want my food,PREPARE_FOR_MEAL
+Please get the dining area ready,PREPARE_FOR_MEAL
+I am ready for my food,PREPARE_FOR_MEAL
+Prepare everything for dinner,PREPARE_FOR_MEAL
+
+Turn off everything around me,SHUTDOWN_ENVIRONMENT
+Switch off all the devices,SHUTDOWN_ENVIRONMENT
+Please shut everything down,SHUTDOWN_ENVIRONMENT
+Turn off the room devices,SHUTDOWN_ENVIRONMENT
+I want the system shut down,SHUTDOWN_ENVIRONMENT
+Switch everything off now,SHUTDOWN_ENVIRONMENT
+Stop all active devices,SHUTDOWN_ENVIRONMENT
+Power down the environment,SHUTDOWN_ENVIRONMENT
+Turn off all connected devices,SHUTDOWN_ENVIRONMENT
+Shut down everything,SHUTDOWN_ENVIRONMENT
