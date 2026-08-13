@@ -22,9 +22,18 @@ python tests/test_evaluation.py
 
 Some tests require a working microphone. The live recording flow currently uses `msvcrt`, so it is intended for Windows.
 
+## Run the web interface
+
+```powershell
+.\.venv\Scripts\python.exe run_web.py
+```
+
+Open `http://127.0.0.1:5000` in your browser. Use the microphone control to start and stop recording; the existing Whisper transcription and intent-recognition workflow runs locally and the result appears in the interface.
+
 ## Project layout
 
 - `app/speech/`: audio recording and transcription
 - `app/intent/`: intent recognition and confidence decisions
+- `app/web/`: local browser interface and API
 - `data/`: intent, validation, ambiguous, and unknown datasets
 - `tests/`: executable validation scripts
