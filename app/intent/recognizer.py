@@ -8,8 +8,7 @@ class IntentRecognizer:
     def __init__(
         self,
         dataset_path,
-        similarity_threshold=0.60,
-        margin_threshold=0.12
+        similarity_threshold=0.60
     ):
 
         self.model = SentenceTransformer(
@@ -27,10 +26,6 @@ class IntentRecognizer:
 
         self.similarity_threshold = (
             similarity_threshold
-        )
-
-        self.margin_threshold = (
-            margin_threshold
         )
 
         # Pre-compute reference embeddings
@@ -78,16 +73,8 @@ class IntentRecognizer:
 
         top_results = ranked[:top_k]
 
-        # Top two
+        # Best intent
         best_intent, best_score = top_results[0]
-
-        second_score = (
-            top_results[1][1]
-            if len(top_results) > 1
-            else 0.0
-        )
-
-        margin = best_score - second_score
 
         # Determine decision
         if best_score < self.similarity_threshold:
@@ -95,14 +82,9 @@ class IntentRecognizer:
             decision = "UNKNOWN"
             predicted_intent = None
 
-        elif margin < self.margin_threshold:
-
-            decision = "AMBIGUOUS"
-            predicted_intent = None
-
         else:
 
-            decision = "ACCEPTED"
+            decision = "PREDICTED"
             predicted_intent = best_intent
 
         # Find best matching reference sentence
@@ -119,7 +101,6 @@ class IntentRecognizer:
             "decision": decision,
             "intent": predicted_intent,
             "similarity_score": float(best_score),
-            "margin": float(margin),
             "matched_sentence": self.sentences[best_index],
             "top_results": [
                 {

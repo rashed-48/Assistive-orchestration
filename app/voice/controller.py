@@ -9,9 +9,7 @@ class VoiceController:
         self,
         intent_file="data/intents.csv",
         whisper_model="base",
-        similarity_threshold=0.65,
-        margin_threshold=0.20,
-        max_clarification_attempts=2
+        similarity_threshold=0.60
     ):
 
         # ==================================================
@@ -36,20 +34,10 @@ class VoiceController:
 
         self.recognizer = IntentRecognizer(
             intent_file,
-            similarity_threshold=similarity_threshold,
-            margin_threshold=margin_threshold
+            similarity_threshold=similarity_threshold
         )
 
         print("Intent recognizer loaded.")
-
-        # ==================================================
-        # CONFIGURATION
-        # ==================================================
-
-        self.max_clarification_attempts = (
-            max_clarification_attempts
-        )
-
 
     # ======================================================
     # LISTEN TO ONE VOICE COMMAND
@@ -79,7 +67,6 @@ class VoiceController:
             return None
 
         return text
-
 
     # ======================================================
     # PROCESS ONE COMMAND
@@ -117,7 +104,6 @@ class VoiceController:
 
         return text, result
 
-
     # ======================================================
     # SHOW RESULT
     # ======================================================
@@ -132,31 +118,19 @@ class VoiceController:
         print("INTENT ANALYSIS")
         print("=" * 60)
 
-        # --------------------------------------------------
-        # Decision
-        # --------------------------------------------------
-
-        print("\nDecision:")
-
         print(
-            result["decision"]
+            f"\nDecision: "
+            f"{result['decision']}"
         )
 
-        # --------------------------------------------------
-        # Intent
-        # --------------------------------------------------
-
-        print("\nPredicted Intent:")
-
         print(
-            result["intent"]
+            f"\nPredicted Intent: "
+            f"{result['intent']}"
         )
 
-        # --------------------------------------------------
-        # Similarity
-        # --------------------------------------------------
-
-        print("\nSimilarity Score:")
+        print(
+            "\nSimilarity Score:"
+        )
 
         print(
             round(
@@ -165,24 +139,17 @@ class VoiceController:
             )
         )
 
-        # --------------------------------------------------
-        # Margin
-        # --------------------------------------------------
-
-        print("\nMargin:")
-
         print(
-            round(
-                result["margin"],
-                4
-            )
+            "\nBest Match:"
         )
 
-        # --------------------------------------------------
-        # Top results
-        # --------------------------------------------------
+        print(
+            result["matched_sentence"]
+        )
 
-        print("\nTop Results:")
+        print(
+            "\nTop Results:"
+        )
 
         for item in result["top_results"]:
 
@@ -190,51 +157,6 @@ class VoiceController:
                 f"{item['intent']:<25}"
                 f"{item['score']:.4f}"
             )
-
-
-    # ======================================================
-    # SHOW AMBIGUOUS COMMAND
-    # ======================================================
-
-    def show_ambiguity(
-        self,
-        result
-    ):
-
-        print("\n" + "=" * 60)
-        print("AMBIGUOUS COMMAND")
-        print("=" * 60)
-
-        print(
-            "\nI am not completely sure "
-            "what you mean."
-        )
-
-        print(
-            "\nPossible interpretations:"
-        )
-
-        # --------------------------------------------------
-        # Show top two possible intents
-        # --------------------------------------------------
-
-        for index, item in enumerate(
-            result["top_results"][:2],
-            start=1
-        ):
-
-            print(
-                f"{index}. {item['intent']}"
-            )
-
-        print(
-            "\nPlease clarify your request."
-        )
-
-        print(
-            "Press ENTER to provide clarification."
-        )
-
 
     # ======================================================
     # SHOW UNKNOWN COMMAND
@@ -255,10 +177,67 @@ class VoiceController:
             "\nPlease try again."
         )
 
+    # ======================================================
+    # CONFIRM PREDICTED INTENT
+    # ======================================================
+
+    def confirm_intent(
+        self,
+        result
+    ):
+
+        intent = result["intent"]
+
+        print("\n" + "=" * 60)
+        print("COMMAND CONFIRMATION")
+        print("=" * 60)
+
         print(
-            "Press ENTER to try again."
+            f"\nI understood your request as:"
         )
 
+        print(
+            f"\n  {intent}"
+        )
+
+        print(
+            f"\nSimilarity Score: "
+            f"{result['similarity_score']:.4f}"
+        )
+
+        while True:
+
+            print(
+                "\nDo you want me to continue?"
+            )
+
+            print(
+                "Enter Y for Yes or N for No:"
+            )
+
+            answer = input(
+                "\n> "
+            ).strip().lower()
+
+            if answer in ("y", "yes"):
+
+                print(
+                    "\nCommand confirmed."
+                )
+
+                return True
+
+            if answer in ("n", "no"):
+
+                print(
+                    "\nCommand cancelled."
+                )
+
+                return False
+
+            print(
+                "\nPlease enter Y or N."
+            )
 
     # ======================================================
     # WAIT FOR ENTER
@@ -270,18 +249,14 @@ class VoiceController:
 
             key = input()
 
-            # Normal ENTER produces an empty string
             if key == "":
                 return
-
 
     # ======================================================
     # MAIN VOICE INTERACTION LOOP
     # ======================================================
 
     def run(self):
-
-        clarification_attempts = 0
 
         while True:
 
@@ -331,70 +306,30 @@ class VoiceController:
             decision = result["decision"]
 
             # ==================================================
-            # ACCEPTED
+            # PREDICTED
             # ==================================================
 
-            if decision == "ACCEPTED":
+            if decision == "PREDICTED":
 
-                print(
-                    "\n" + "=" * 60
-                )
-
-                print(
-                    "COMMAND ACCEPTED"
-                )
-
-                print(
-                    "=" * 60
-                )
-
-                print(
-                    f"\nFinal Intent: "
-                    f"{result['intent']}"
-                )
-
-                print(
-                    "\nThis intent is ready "
-                    "for the orchestration layer."
-                )
-
-                return result
-
-            # ==================================================
-            # AMBIGUOUS
-            # ==================================================
-
-            elif decision == "AMBIGUOUS":
-
-                clarification_attempts += 1
-
-                self.show_ambiguity(
+                confirmed = self.confirm_intent(
                     result
                 )
 
                 # ------------------------------------------------
-                # Maximum clarification attempts
+                # User confirmed
                 # ------------------------------------------------
 
-                if (
-                    clarification_attempts
-                    >= self.max_clarification_attempts
-                ):
+                if confirmed:
 
-                    print(
-                        "\nMaximum clarification "
-                        "attempts reached."
-                    )
-
-                    print(
-                        "The command has been cancelled."
-                    )
-
-                    return None
+                    return result
 
                 # ------------------------------------------------
-                # Continue loop
+                # User rejected prediction
                 # ------------------------------------------------
+
+                print(
+                    "\nPlease provide another command."
+                )
 
                 continue
 
@@ -405,13 +340,6 @@ class VoiceController:
             elif decision == "UNKNOWN":
 
                 self.show_unknown()
-
-                # ------------------------------------------------
-                # Reset clarification count because this is
-                # a new command rather than clarification.
-                # ------------------------------------------------
-
-                clarification_attempts = 0
 
                 continue
 

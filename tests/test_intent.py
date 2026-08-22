@@ -7,13 +7,13 @@ recognizer = IntentRecognizer(
 
 
 test_sentences = [
-    "I feel exhausted and want to go to bed.",
-    "Can you help me get outside?",
-    "I need to take my pills.",
-    "I have some studying to do.",
+    "I want to sleep",
+    "prepare for sleep",
+    "I want to study",
+    "I need my medicine",
     "Something terrible has happened.",
-    "I have just gotten out of bed.",
-    "I want some quiet time.",
+    "prepare for skill",
+    "the weather is nice",
     "Please prepare things for my dinner.",
 ]
 
@@ -32,8 +32,8 @@ for sentence in test_sentences:
     )
 
     print(
-        "Confidence:",
-        round(result["confidence"], 4)
+        "similarity_score:",
+        round(result["similarity_score"], 4)
     )
 
     print(
