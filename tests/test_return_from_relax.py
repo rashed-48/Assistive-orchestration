@@ -4,7 +4,7 @@ from app.orchestration.state import (
     Mode,
     PowerState,
 )
-from app.orchestration.workflow_engine import WorkflowEngine
+from app.orchestration.orchestrator import Orchestrator
 from app.devices.mock_device import MockDeviceExecutor
 
 
@@ -14,8 +14,8 @@ from app.devices.mock_device import MockDeviceExecutor
 
 context = ContextManager()
 
-engine = WorkflowEngine(context)
 executor = MockDeviceExecutor(context)
+orchestrator = Orchestrator(context, executor)
 
 
 # ======================================================
@@ -48,13 +48,6 @@ context.print_state()
 
 
 # ======================================================
-# CREATE RETURN WORKFLOW
-# ======================================================
-
-actions = engine.create_return_workflow()
-
-
-# ======================================================
 # EXECUTE RETURN WORKFLOW
 # ======================================================
 
@@ -62,11 +55,7 @@ print("\n" + "=" * 70)
 print("EXECUTING RETURN WORKFLOW")
 print("=" * 70)
 
-executor.execute_workflow(
-    actions,
-    destination=context.get_return_target(),
-    mode=Mode.STUDY
-)
+orchestrator.execute_intent("RETURN_TO_ROOM")
 
 
 # ======================================================

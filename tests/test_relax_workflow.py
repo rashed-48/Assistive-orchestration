@@ -5,14 +5,14 @@ from app.orchestration.state import (
     PowerState,
     PreparationState,
 )
-from app.orchestration.workflow_engine import WorkflowEngine
+from app.orchestration.orchestrator import Orchestrator
 from app.devices.mock_device import MockDeviceExecutor
 
 
 context = ContextManager()
 
-engine = WorkflowEngine(context)
 executor = MockDeviceExecutor(context)
+orchestrator = Orchestrator(context, executor)
 
 
 # Simulate that the user is already studying
@@ -30,18 +30,11 @@ print("=" * 70)
 context.print_state()
 
 
-actions = engine.create_relax_workflow()
-
-
 print("\n" + "=" * 70)
 print("EXECUTING RELAX WORKFLOW")
 print("=" * 70)
 
-executor.execute_workflow(
-    actions,
-    destination=Room.RELAX_ROOM,
-    mode=Mode.RELAX
-)
+orchestrator.execute_intent("RELAX_MODE")
 
 print("\n" + "=" * 70)
 print("FINAL STATE")

@@ -1,4 +1,5 @@
 import uuid
+import warnings
 
 from app.orchestration.actions import Action
 from app.devices.device_registry import DEVICE_NODE_MAP
@@ -271,6 +272,19 @@ class MQTTDeviceExecutor:
         timeout=5,
         max_retries=2
     ):
+        """Execute actions sequentially without logical workflow authority.
+
+        This compatibility helper performs transport execution only. Use
+        Orchestrator.execute_intent() for authoritative workflow execution and
+        ContextManager state synchronization.
+        """
+
+        warnings.warn(
+            "MQTTDeviceExecutor.execute_workflow() is non-authoritative; "
+            "use Orchestrator.execute_intent() for logical workflow execution.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
         results = []
 

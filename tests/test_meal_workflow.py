@@ -4,7 +4,7 @@ from app.orchestration.state import (
     Mode,
     PowerState,
 )
-from app.orchestration.workflow_engine import WorkflowEngine
+from app.orchestration.orchestrator import Orchestrator
 from app.devices.mock_device import MockDeviceExecutor
 
 
@@ -14,8 +14,8 @@ from app.devices.mock_device import MockDeviceExecutor
 
 context = ContextManager()
 
-engine = WorkflowEngine(context)
 executor = MockDeviceExecutor(context)
+orchestrator = Orchestrator(context, executor)
 
 
 # ======================================================
@@ -47,13 +47,6 @@ context.print_state()
 
 
 # ======================================================
-# CREATE MEAL WORKFLOW
-# ======================================================
-
-actions = engine.create_meal_workflow()
-
-
-# ======================================================
 # EXECUTE WORKFLOW
 # ======================================================
 
@@ -61,11 +54,7 @@ print("\n" + "=" * 70)
 print("EXECUTING MEAL WORKFLOW")
 print("=" * 70)
 
-executor.execute_workflow(
-    actions,
-    destination=Room.MEAL_ROOM,
-    mode=Mode.MEAL
-)
+orchestrator.execute_intent("PREPARE_FOR_MEAL")
 
 
 # ======================================================

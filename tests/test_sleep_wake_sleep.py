@@ -5,14 +5,14 @@ from app.orchestration.state import (
     PreparationState,
     PowerState,
 )
-from app.orchestration.workflow_engine import WorkflowEngine
+from app.orchestration.orchestrator import Orchestrator
 from app.devices.mock_device import MockDeviceExecutor
 
 
 context = ContextManager()
 
-engine = WorkflowEngine(context)
 executor = MockDeviceExecutor(context)
+orchestrator = Orchestrator(context, executor)
 
 
 # ======================================================
@@ -42,13 +42,7 @@ print("\n" + "=" * 70)
 print("STEP 1: WAKE UP")
 print("=" * 70)
 
-actions = engine.create_wake_up_workflow()
-
-executor.execute_workflow(
-    actions,
-    destination=Room.SLEEP_ROOM,
-    mode=Mode.SLEEP
-)
+orchestrator.execute_intent("WAKE_UP")
 
 context.print_state()
 
@@ -61,12 +55,6 @@ print("\n" + "=" * 70)
 print("STEP 2: PREPARE FOR SLEEP AGAIN")
 print("=" * 70)
 
-actions = engine.create_sleep_workflow()
-
-executor.execute_workflow(
-    actions,
-    destination=Room.SLEEP_ROOM,
-    mode=Mode.SLEEP
-)
+orchestrator.execute_intent("PREPARE_FOR_SLEEP")
 
 context.print_state()

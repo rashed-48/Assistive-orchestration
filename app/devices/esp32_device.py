@@ -1,3 +1,5 @@
+import warnings
+
 import requests
 
 from app.orchestration.actions import Action
@@ -24,6 +26,19 @@ class ESP32DeviceExecutor:
         return response.json()
 
     def execute_workflow(self, actions):
+        """Execute actions sequentially without logical workflow authority.
+
+        This compatibility helper performs HTTP transport execution only. Use
+        Orchestrator.execute_intent() for authoritative workflow execution and
+        ContextManager state synchronization.
+        """
+
+        warnings.warn(
+            "ESP32DeviceExecutor.execute_workflow() is non-authoritative; "
+            "use Orchestrator.execute_intent() for logical workflow execution.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
         results = []
 
