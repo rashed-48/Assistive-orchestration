@@ -19,6 +19,19 @@
       <div class="system-status"><span class="status-dot"></span><span>Voice system ready</span></div>
     </header>
 
+    <div id="location-banner" class="location-banner" role="alert" hidden>
+      <i data-lucide="map-pin-off"></i>
+      <div>
+        <span id="location-message">The system does not know where you are.</span>
+        <div id="location-actions" class="location-actions"></div>
+      </div>
+    </div>
+
+    <div id="emergency-banner" class="emergency-banner" role="alert" hidden>
+      <i data-lucide="siren"></i>
+      <span>Emergency active. Normal commands are blocked until the emergency is cleared.</span>
+    </div>
+
     <section class="workspace" aria-label="Voice command workspace">
       <div class="command-panel">
         <p class="eyebrow">Voice command</p>
@@ -67,7 +80,21 @@
 
           <div class="metrics">
             <div><span>Similarity</span><b id="similarity-score">--</b></div>
-            <div><span>Confidence gap</span><b id="margin-score">--</b></div>
+            <div><span>Closest phrase</span><b id="matched-sentence" class="matched-sentence">--</b></div>
+          </div>
+
+          <div id="confirm-bar" class="confirm-bar" hidden>
+            <span class="field-label">Run this command?</span>
+            <div class="confirm-actions">
+              <button id="confirm-button" class="btn btn-primary" type="button">Confirm</button>
+              <button id="cancel-button" class="btn btn-ghost" type="button">Cancel</button>
+            </div>
+          </div>
+
+          <div id="execution" class="execution" hidden>
+            <span class="field-label">Workflow result</span>
+            <p id="execution-summary"></p>
+            <ol id="execution-actions"></ol>
           </div>
 
           <div class="alternatives">
@@ -76,6 +103,17 @@
           </div>
         </div>
       </aside>
+    </section>
+
+    <section class="state-panel" aria-label="Environment state" aria-live="polite">
+      <div class="panel-header">
+        <div>
+          <p class="eyebrow">Authoritative state</p>
+          <h2>Environment</h2>
+        </div>
+        <span id="mqtt-pill" class="decision-pill idle">MQTT</span>
+      </div>
+      <div id="state-grid" class="state-grid"></div>
     </section>
 
     <footer>Local voice processing · Faster Whisper + semantic intent recognition</footer>

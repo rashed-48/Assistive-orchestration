@@ -14,7 +14,7 @@ time.sleep(1)
 
 
 print("\n" + "=" * 70)
-print("ESP32-A → ESP32-C TRANSITION REQUEST")
+print("ESP32-A -> ESP32-C TRANSITION REQUEST")
 print("=" * 70)
 
 esp32_a.send_message(

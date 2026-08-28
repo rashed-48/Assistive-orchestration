@@ -1,27 +1,88 @@
+import os
 from pathlib import Path
 import threading
 
-from flask import Flask, jsonify, render_template
+from flask import Flask, jsonify, render_template, request
 
-from app.voice.controller import VoiceController
+from app.intent import DEFAULT_SIMILARITY_THRESHOLD
+from app.orchestration.orchestrator import LocationUnknown
+from app.orchestration.state import Room
+from app.runtime import (
+    DEFAULT_BROKER_HOST,
+    DEFAULT_BROKER_PORT,
+    ApplicationRuntime,
+    EmergencyActive,
+    IntentNotSupported,
+    TransportUnavailable,
+)
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
+INTENT_DATASET = PROJECT_ROOT / "data" / "intents.csv"
+RECORDING_PATH = PROJECT_ROOT / "command.wav"
 
-def create_app():
+
+# Settings used to build the application's default VoiceController.
+#
+# Kept as a named constant so a test can prove they still match the
+# controller's signature without paying for a model load. They drifted apart
+# once already: the web layer went on passing margin_threshold and
+# max_clarification_attempts after the ambiguity API was retired, and the
+# application stopped booting.
+DEFAULT_CONTROLLER_SETTINGS = {
+    "intent_file": str(INTENT_DATASET),
+    "whisper_model": "base",
+    # Sourced from the recognizer so the application, the library
+    # default, and the automated measurements cannot drift apart again.
+    "similarity_threshold": DEFAULT_SIMILARITY_THRESHOLD,
+}
+
+
+def create_app(controller=None, runtime=None):
+    """Build the Flask application.
+
+    controller and runtime are injectable so the HTTP layer can be tested
+    without loading Whisper, a sentence-transformer, or a broker.
+    Production callers omit both.
+
+    The runtime is application scoped: one ContextManager, one MQTT
+    connection, one Orchestrator for the life of the process, so state
+    committed by one command is visible to the next.
+    """
+
     app = Flask(__name__)
     app.config["JSON_SORT_KEYS"] = False
 
-    controller = VoiceController(
-        intent_file=str(PROJECT_ROOT / "data" / "intents.csv"),
-        whisper_model="base",
-        similarity_threshold=0.65,
-        margin_threshold=0.20,
-        max_clarification_attempts=2
-    )
+    if controller is None:
+        # Imported here rather than at module scope: building the default
+        # controller loads Whisper and a sentence-transformer, and callers
+        # that inject their own must not pay for that.
+        from app.voice.controller import VoiceController
+
+        controller = VoiceController(**DEFAULT_CONTROLLER_SETTINGS)
+
+    if runtime is None:
+        # The broker address is configurable so the application can be
+        # pointed at a test broker without editing code.
+        runtime = ApplicationRuntime(
+            broker_host=os.environ.get(
+                "ASSISTIVE_BROKER_HOST",
+                DEFAULT_BROKER_HOST,
+            ),
+            broker_port=int(
+                os.environ.get(
+                    "ASSISTIVE_BROKER_PORT",
+                    DEFAULT_BROKER_PORT,
+                )
+            ),
+        )
+        runtime.connect()
+
+    app.runtime = runtime
+
     recording_lock = threading.Lock()
-    state = {"recording": False, "clarification_attempts": 0}
+    state = {"recording": False}
 
     @app.get("/")
     def dashboard():
@@ -51,9 +112,7 @@ def create_app():
             state["recording"] = False
 
         try:
-            audio_path = controller.recorder.stop_recording(
-                str(PROJECT_ROOT / "command.wav")
-            )
+            audio_path = controller.recorder.stop_recording(str(RECORDING_PATH))
 
             if audio_path is None:
                 return jsonify({"error": "No audio was captured. Please try again."}), 422
@@ -64,32 +123,234 @@ def create_app():
                 return jsonify({"error": "No speech was detected. Please try again."}), 422
 
             result = controller.recognizer.predict(text)
-
-            if result["decision"] == "AMBIGUOUS":
-                state["clarification_attempts"] += 1
-            else:
-                state["clarification_attempts"] = 0
-
-            result["clarification_attempts"] = state["clarification_attempts"]
-            result["max_clarification_attempts"] = controller.max_clarification_attempts
             result["transcription"] = text
 
-            if (
-                result["decision"] == "AMBIGUOUS"
-                and state["clarification_attempts"] >= controller.max_clarification_attempts
-            ):
-                result["message"] = "Maximum clarification attempts reached. The command has been cancelled."
-                state["clarification_attempts"] = 0
-            elif result["decision"] == "AMBIGUOUS":
-                result["message"] = "Please clarify your request by recording another command."
-            elif result["decision"] == "UNKNOWN":
-                result["message"] = "This request did not match a supported command. Please try again."
+            # The recognizer picks the best supported intent and reports
+            # how confident it was. Deciding whether to run it is the
+            # user's call, and executing it belongs to the orchestration
+            # layer, not to this endpoint.
+            if result["decision"] == "PREDICTED":
+
+                intent = result["intent"]
+                executable = runtime.is_allowed_now(intent)
+
+                if executable:
+                    runtime.set_pending_intent(intent)
+
+                    result["message"] = (
+                        "Best matching command. Confirm it to run the "
+                        "workflow."
+                    )
+
+                elif not runtime.is_supported(intent):
+                    runtime.clear_pending_intent()
+
+                    result["message"] = (
+                        f"{intent} was recognized but has no workflow, "
+                        f"so it cannot be run."
+                    )
+
+                elif runtime.emergency_active():
+                    runtime.clear_pending_intent()
+
+                    result["message"] = (
+                        f"The environment is in emergency, so {intent} "
+                        f"is blocked. Clear the emergency first."
+                    )
+
+                else:
+                    runtime.clear_pending_intent()
+
+                    result["message"] = (
+                        "There is no active emergency to clear."
+                    )
+
+                result["executable"] = executable
+
             else:
-                result["message"] = "Command accepted and ready for the orchestration layer."
+                runtime.clear_pending_intent()
+
+                result["executable"] = False
+                result["message"] = (
+                    "This request did not match a supported command. "
+                    "Please try again."
+                )
 
             return jsonify(result)
         except Exception as error:
             return jsonify({"error": f"Command processing failed: {error}"}), 500
+
+    # ==========================================================
+    # CONFIRMATION
+    #
+    # The user has seen the predicted intent and accepted it. From
+    # here the web layer only hands the intent to the runtime; it
+    # never plans actions and never touches the device executor.
+    # ==========================================================
+
+    @app.post("/api/intent/confirm")
+    def confirm_intent():
+
+        payload = request.get_json(silent=True) or {}
+
+        intent = payload.get("intent")
+        pending = runtime.get_pending_intent()
+
+        if not intent:
+            return jsonify({"error": "No intent was supplied."}), 400
+
+        if pending is None:
+            return jsonify(
+                {"error": "There is no predicted command awaiting confirmation."}
+            ), 409
+
+        if intent != pending:
+            # Only the command the system actually proposed may run.
+            return jsonify(
+                {
+                    "error": (
+                        f"{intent} does not match the predicted command "
+                        f"{pending}."
+                    )
+                }
+            ), 409
+
+        try:
+            results = runtime.execute_intent(intent)
+
+        except IntentNotSupported:
+            runtime.clear_pending_intent()
+            return jsonify(
+                {"error": f"{intent} is not a supported workflow."}
+            ), 400
+
+        except LocationUnknown as error:
+            runtime.clear_pending_intent()
+            return jsonify(
+                {
+                    "status": "location_unknown",
+                    "intent": intent,
+                    "error": str(error),
+                    "state": runtime.state_snapshot(),
+                }
+            ), 409
+
+        except EmergencyActive as error:
+            # The latch is checked again here, not only at prediction
+            # time: nothing may slip through between the two.
+            runtime.clear_pending_intent()
+            return jsonify(
+                {
+                    "status": "blocked",
+                    "intent": intent,
+                    "error": str(error),
+                    "state": runtime.state_snapshot(),
+                }
+            ), 409
+
+        except TransportUnavailable as error:
+            return jsonify(
+                {
+                    "status": "failed",
+                    "intent": intent,
+                    "error": str(error),
+                    "state": runtime.state_snapshot(),
+                }
+            ), 503
+
+        except Exception as error:
+            # The workflow stopped part way. Orchestrator deliberately
+            # leaves room and mode uncommitted, so the state below is
+            # the truthful one to show.
+            runtime.clear_pending_intent()
+
+            return jsonify(
+                {
+                    "status": "failed",
+                    "intent": intent,
+                    "error": str(error),
+                    "state": runtime.state_snapshot(),
+                }
+            ), 502
+
+        runtime.clear_pending_intent()
+
+        # Safety workflows run best effort, so a completed call can
+        # still contain failed actions. Say so rather than reporting a
+        # clean success.
+        failed = [
+            result
+            for result in results
+            if result.get("status") != "success"
+        ]
+
+        return jsonify(
+            {
+                "status": "degraded" if failed else "executed",
+                "degraded": bool(failed),
+                "failed_actions": len(failed),
+                "intent": intent,
+                "executed_actions": len(results),
+                "actions": [
+                    {
+                        "device": result.get("device"),
+                        "action": result.get("action"),
+                        "status": result.get("status"),
+                        "node": result.get("node"),
+                    }
+                    for result in results
+                ],
+                "state": runtime.state_snapshot(),
+            }
+        )
+
+    @app.post("/api/intent/cancel")
+    def cancel_intent():
+
+        runtime.clear_pending_intent()
+
+        return jsonify({"status": "cancelled"})
+
+    # ==========================================================
+    # STATE VISIBILITY
+    # ==========================================================
+
+    @app.post("/api/location/confirm")
+    def confirm_location():
+        """Let the user say where they are.
+
+        The system cannot sense location, so when it loses track - after
+        a crash, or a workflow interrupted once a door had opened - the
+        only honest source is a person telling it. Without this the web
+        interface has no way out of UNKNOWN.
+        """
+
+        payload = request.get_json(silent=True) or {}
+        name = (payload.get("room") or "").strip().upper()
+
+        try:
+            room = Room(name)
+        except ValueError:
+            return jsonify(
+                {
+                    "error": f"{name or 'No room'} is not a known room.",
+                    "rooms": [member.value for member in Room],
+                }
+            ), 400
+
+        runtime.context.confirm_location(room)
+
+        return jsonify(
+            {
+                "status": "confirmed",
+                "room": room.value,
+                "state": runtime.state_snapshot(),
+            }
+        )
+
+    @app.get("/api/state")
+    def environment_state():
+        return jsonify(runtime.state_snapshot())
 
     return app
 

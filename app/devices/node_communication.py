@@ -100,7 +100,7 @@ class NodeCommunication:
 
                 print(
                     f"[{self.node_id}] "
-                    f"Transition requested → "
+                    f"Transition requested -> "
                     f"{destination}"
                 )
 
@@ -178,7 +178,7 @@ class NodeCommunication:
 
         print(
             f"[{self.node_id}] "
-            f"Sent {message_type} → {target}"
+            f"Sent {message_type} -> {target}"
         )
 
     def disconnect(self):

@@ -1,5 +1,7 @@
 import json
 import sys
+import threading
+from collections import OrderedDict
 
 import paho.mqtt.client as mqtt
 
@@ -39,12 +41,23 @@ NODE_DEVICES = {
 
 class SimulatedESP32:
 
+    # How many completed command ids this node remembers. A real ESP32
+    # has finite RAM, so the history is bounded and the oldest entries
+    # are forgotten first.
+    COMMAND_HISTORY_LIMIT = 128
+
     def __init__(
         self,
-        node_id: str
+        node_id: str,
+        broker_host: str = BROKER_HOST,
+        broker_port: int = BROKER_PORT
     ):
 
         self.node_id = node_id
+
+        self.broker_host = broker_host
+
+        self.broker_port = broker_port
 
         # ------------------------------------------------------
         # Command topic
@@ -92,6 +105,22 @@ class SimulatedESP32:
             self.on_message
         )
 
+        self.client.on_subscribe = (
+            self.on_subscribe
+        )
+
+        # Set once the broker confirms the command subscription, so a
+        # caller can wait until this node can actually receive commands.
+        self.ready = threading.Event()
+
+        # Command ids this node has already carried out, mapped to the
+        # status it answered with. A retry arrives with the same id and
+        # must be re-acknowledged, never re-executed.
+        self.processed_commands = OrderedDict()
+
+        self.executed_count = 0
+        self.duplicate_count = 0
+
     # ==========================================================
     # MQTT CONNECTED
     # ==========================================================
@@ -130,6 +159,26 @@ class SimulatedESP32:
                 f"Connection failed: "
                 f"{reason_code}"
             )
+
+    # ==========================================================
+    # SUBSCRIPTION CONFIRMED
+    # ==========================================================
+
+    def on_subscribe(
+        self,
+        client,
+        userdata,
+        mid,
+        reason_codes,
+        properties=None
+    ):
+
+        self.ready.set()
+
+    def wait_until_ready(self, timeout=10):
+        """Block until this node is subscribed to its command topic."""
+
+        return self.ready.wait(timeout=timeout)
 
     # ==========================================================
     # COMMAND RECEIVED
@@ -205,7 +254,41 @@ class SimulatedESP32:
             )
 
             # --------------------------------------------------
-            # Convert action name → ActionType
+            # Duplicate command?
+            #
+            # The executor keeps one command id per logical action and
+            # reuses it when it retries. Seeing an id we already
+            # completed means the acknowledgement was lost, not that
+            # the action should happen again.
+            # --------------------------------------------------
+
+            if (
+                command_id is not None
+                and command_id in self.processed_commands
+            ):
+
+                self.duplicate_count += 1
+
+                previous = self.processed_commands[command_id]
+
+                print(
+                    f"[{self.node_id}] "
+                    f"DUPLICATE command_id -> "
+                    f"re-acknowledging without executing"
+                )
+
+                self.publish_status(
+                    device=previous["device"],
+                    action=previous["action"],
+                    status=previous["status"],
+                    command_id=command_id,
+                    duplicate=True,
+                )
+
+                return
+
+            # --------------------------------------------------
+            # Convert action name -> ActionType
             # --------------------------------------------------
 
             action_type = ActionType[
@@ -227,6 +310,22 @@ class SimulatedESP32:
 
             self.controller.execute(
                 action
+            )
+
+            self.executed_count += 1
+
+            # --------------------------------------------------
+            # Remember it, so a retry is not executed again.
+            #
+            # Only completed commands are recorded. One that raised
+            # above never reaches here, so it stays retryable.
+            # --------------------------------------------------
+
+            self._remember(
+                command_id,
+                device=device,
+                action=action_name,
+                status="success",
             )
 
             # --------------------------------------------------
@@ -276,6 +375,25 @@ class SimulatedESP32:
             )
 
     # ==========================================================
+    # COMMAND HISTORY
+    # ==========================================================
+
+    def _remember(self, command_id, device, action, status):
+
+        if command_id is None:
+            # Nothing to correlate a retry against.
+            return
+
+        self.processed_commands[command_id] = {
+            "device": device,
+            "action": action,
+            "status": status,
+        }
+
+        while len(self.processed_commands) > self.COMMAND_HISTORY_LIMIT:
+            self.processed_commands.popitem(last=False)
+
+    # ==========================================================
     # PUBLISH STATUS
     # ==========================================================
 
@@ -284,7 +402,8 @@ class SimulatedESP32:
         device,
         action,
         status,
-        command_id=None
+        command_id=None,
+        **extra
     ):
 
         payload = {
@@ -299,6 +418,10 @@ class SimulatedESP32:
 
             "status": status,
         }
+
+        # Additive only. The status contract stays as it was; a
+        # duplicate is still a normal acknowledgement to the executor.
+        payload.update(extra)
 
         self.client.publish(
 
@@ -315,24 +438,74 @@ class SimulatedESP32:
         )
 
     # ==========================================================
-    # START NODE
+    # LOCAL SIMULATED HARDWARE STATE
     # ==========================================================
 
+    def get_device_states(self) -> dict:
+        """This node's simulated pin state.
+
+        Deliberately separate from EnvironmentState: this is what the
+        hardware believes, not what the application logically believes.
+        """
+
+        return self.controller.get_device_states()
+
+    # ==========================================================
+    # START / STOP
+    # ==========================================================
+
+    def connect(self):
+        """Connect and service MQTT on a background thread."""
+
+        self.client.connect(
+            self.broker_host,
+            self.broker_port
+        )
+
+        self.client.loop_start()
+
+    def disconnect(self):
+        """Stop servicing MQTT and leave the broker cleanly."""
+
+        self.client.loop_stop()
+
+        self.client.disconnect()
+
+        print(
+            f"[{self.node_id}] Disconnected from broker"
+        )
+
     def start(self):
+        """Run this node in the foreground until interrupted."""
 
         print(
             f"\nStarting simulated "
-            f"{self.node_id}"
+            f"{self.node_id} -> "
+            f"{self.broker_host}:{self.broker_port}"
         )
 
         self.client.connect(
-
-            BROKER_HOST,
-
-            BROKER_PORT
+            self.broker_host,
+            self.broker_port
         )
 
-        self.client.loop_forever()
+        try:
+
+            self.client.loop_forever()
+
+        except KeyboardInterrupt:
+
+            print(
+                f"\n[{self.node_id}] Shutting down"
+            )
+
+        finally:
+
+            self.client.disconnect()
+
+            print(
+                f"[{self.node_id}] Disconnected from broker"
+            )
 
 
 # ==============================================================
@@ -341,7 +514,7 @@ class SimulatedESP32:
 
 if __name__ == "__main__":
 
-    if len(sys.argv) != 2:
+    if len(sys.argv) not in (2, 4):
 
         print(
             "Usage:"
@@ -350,12 +523,17 @@ if __name__ == "__main__":
         print(
             "python -m "
             "app.devices.simulated_node "
-            "<esp32_a|esp32_b|esp32_c>"
+            "<esp32_a|esp32_b|esp32_c> "
+            "[broker_host broker_port]"
         )
 
         sys.exit(1)
 
     node_id = sys.argv[1]
+
+    host = sys.argv[2] if len(sys.argv) == 4 else BROKER_HOST
+
+    port = int(sys.argv[3]) if len(sys.argv) == 4 else BROKER_PORT
 
     if node_id not in NODE_DEVICES:
 
@@ -382,7 +560,9 @@ if __name__ == "__main__":
         sys.exit(1)
 
     node = SimulatedESP32(
-        node_id
+        node_id,
+        broker_host=host,
+        broker_port=port
     )
 
     node.start()

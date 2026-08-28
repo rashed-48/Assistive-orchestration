@@ -1,10 +1,44 @@
-from app.orchestration.context_manager import ContextManager
-from app.orchestration.workflow_engine import WorkflowEngine
+"""Manual MQTT integration script: PREPARE_FOR_SLEEP from the Relax Room.
+
+Requires a running MQTT broker and the three simulated nodes:
+
+    python -m app.devices.simulated_node esp32_a
+    python -m app.devices.simulated_node esp32_b
+    python -m app.devices.simulated_node esp32_c
+
+Run with:
+
+    python -m tests.test_mqtt_sleep_workflow
+
+This script executes through Orchestrator.execute_intent(), which is the
+only authoritative workflow execution path. The Orchestrator owns
+current_room, current_mode, and return_target; MQTTDeviceExecutor only
+carries actions to the nodes and waits for acknowledgements.
+
+It previously called executor.execute_workflow() directly. That performs
+transport without committing any logical state, so the script reported ten
+successful actions and then printed a final state still claiming the user
+was in the Relax Room. The workflow-level state authority must not be
+bypassed by anything that goes on to present state as authoritative.
+
+Expected outcome on success:
+
+    current_room  = SLEEP_ROOM
+    current_mode  = SLEEP
+    return_target = RELAX_ROOM
+"""
 
 from app.devices.mqtt_client import MQTTClient
 from app.devices.mqtt_device import (
-    MQTTDeviceExecutor,
     ActionExecutionError,
+    MQTTDeviceExecutor,
+)
+from app.orchestration.context_manager import ContextManager
+from app.orchestration.orchestrator import Orchestrator
+from app.orchestration.state import (
+    Mode,
+    PowerState,
+    Room,
 )
 
 
@@ -16,13 +50,7 @@ def main():
 
     context = ContextManager()
 
-    # Start from Relax Room
-    from app.orchestration.state import (
-        Room,
-        Mode,
-        PowerState,
-    )
-
+    # Start from the Relax Room, mid-session.
     context.set_current_room(
         Room.RELAX_ROOM
     )
@@ -35,21 +63,8 @@ def main():
         Mode.RELAX
     )
 
-    # Current Relax environment
     context.state.relax.light = PowerState.ON
     context.state.relax.tv = PowerState.ON
-
-    # ==========================================================
-    # WORKFLOW ENGINE
-    # ==========================================================
-
-    workflow_engine = WorkflowEngine(
-        context
-    )
-
-    actions = (
-        workflow_engine.create_sleep_workflow()
-    )
 
     # ==========================================================
     # INITIAL STATE
@@ -62,16 +77,12 @@ def main():
     context.print_state()
 
     # ==========================================================
-    # DISPLAY WORKFLOW
+    # MQTT
     # ==========================================================
 
     print("\n" + "=" * 70)
     print("EXECUTING SLEEP WORKFLOW THROUGH MQTT")
     print("=" * 70)
-
-    # ==========================================================
-    # MQTT CLIENT
-    # ==========================================================
 
     mqtt_client = MQTTClient(
         broker_host="localhost",
@@ -81,48 +92,36 @@ def main():
 
     mqtt_client.connect()
 
-    # ==========================================================
-    # MQTT DEVICE EXECUTOR
-    # ==========================================================
-
     executor = MQTTDeviceExecutor(
         mqtt_client
     )
 
     # ==========================================================
-    # EXECUTE WORKFLOW
+    # ORCHESTRATOR
+    # ==========================================================
+
+    orchestrator = Orchestrator(
+        context=context,
+        device_executor=executor
+    )
+
+    # ==========================================================
+    # EXECUTE SLEEP INTENT
     # ==========================================================
 
     try:
 
-        results = executor.execute_workflow(
-            actions,
-            timeout=5,
-            max_retries=2
+        results = orchestrator.execute_intent(
+            "PREPARE_FOR_SLEEP"
         )
-
-        # ------------------------------------------------------
-        # SUCCESS
-        # ------------------------------------------------------
 
         print("\n" + "=" * 70)
         print("SLEEP WORKFLOW COMPLETED SUCCESSFULLY")
         print("=" * 70)
 
         print(
-            f"Successfully executed "
-            f"{len(results)} actions."
+            f"Acknowledged {len(results)} actions."
         )
-
-        # ------------------------------------------------------
-        # Print final state only after successful execution
-        # ------------------------------------------------------
-
-        print("\n" + "=" * 70)
-        print("FINAL LOGICAL STATE")
-        print("=" * 70)
-
-        context.print_state()
 
     except ActionExecutionError as error:
 
@@ -139,28 +138,11 @@ def main():
         )
 
         print(
-            "\nRemaining workflow actions "
-            "were not executed."
+            "\nRemaining workflow actions were not executed. "
+            "Room and mode were deliberately left uncommitted."
         )
 
-    except TimeoutError as error:
-
-        # ------------------------------------------------------
-        # CONTROLLED TIMEOUT
-        # ------------------------------------------------------
-
-        print("\n" + "=" * 70)
-        print("SLEEP WORKFLOW TIMEOUT")
-        print("=" * 70)
-
-        print(
-            f"Reason: {error}"
-        )
-
-        print(
-            "\nRemaining workflow actions "
-            "were not executed."
-        )
+        context.print_state()
 
     except Exception as error:
 
@@ -176,11 +158,9 @@ def main():
             f"Unexpected error: {error}"
         )
 
-    finally:
+        context.print_state()
 
-        # ======================================================
-        # DISCONNECT
-        # ======================================================
+    finally:
 
         input(
             "\nPress ENTER to disconnect..."
@@ -189,10 +169,5 @@ def main():
         mqtt_client.disconnect()
 
 
-# ==============================================================
-# MAIN
-# ==============================================================
-
 if __name__ == "__main__":
-
     main()

@@ -1,5 +1,6 @@
 from app.speech.recorder import AudioRecorder
 from app.speech.transcriber import SpeechTranscriber
+from app.intent import DEFAULT_SIMILARITY_THRESHOLD
 from app.intent.recognizer import IntentRecognizer
 
 
@@ -9,7 +10,7 @@ class VoiceController:
         self,
         intent_file="data/intents.csv",
         whisper_model="base",
-        similarity_threshold=0.60
+        similarity_threshold=DEFAULT_SIMILARITY_THRESHOLD
     ):
 
         # ==================================================

@@ -1,0 +1,111 @@
+sentence,intent
+Time to wake up,WAKE_UP
+Good morning let's get going,WAKE_UP
+That's me awake,WAKE_UP
+Out of bed now,WAKE_UP
+The night is over,WAKE_UP
+Wakey wakey,WAKE_UP
+Get the place ready I'm up,WAKE_UP
+No more sleeping for me,WAKE_UP
+Daylight already,WAKE_UP
+Let's get up,WAKE_UP
+It's time for bed,PREPARE_FOR_SLEEP
+Getting ready for bed now,PREPARE_FOR_SLEEP
+Off to bed,PREPARE_FOR_SLEEP
+Wind things down I'm sleeping,PREPARE_FOR_SLEEP
+Bedtime,PREPARE_FOR_SLEEP
+Sort the room out for the night,PREPARE_FOR_SLEEP
+I'll turn in now,PREPARE_FOR_SLEEP
+Nearly time to sleep,PREPARE_FOR_SLEEP
+Make it dark and quiet I'm sleeping,PREPARE_FOR_SLEEP
+Ready to lie down for the night,PREPARE_FOR_SLEEP
+Put the telly on,RELAX_MODE
+Let me watch something,RELAX_MODE
+Time to chill out,RELAX_MODE
+Something to watch please,RELAX_MODE
+Let's have a quiet evening,RELAX_MODE
+Put a film on for me,RELAX_MODE
+Just want to sit and unwind,RELAX_MODE
+Evening mode,RELAX_MODE
+Nothing strenuous just relaxing,RELAX_MODE
+Take it easy for a bit,RELAX_MODE
+Time to study,STUDY_MODE
+Let's get started with studying,STUDY_MODE
+I've got work to do,STUDY_MODE
+Set me up for reading,STUDY_MODE
+Need to concentrate now,STUDY_MODE
+Homework time,STUDY_MODE
+Getting on with my coursework,STUDY_MODE
+Desk ready please,STUDY_MODE
+Time to focus,STUDY_MODE
+Revision session,STUDY_MODE
+Heading out,LEAVE_ROOM
+Off out for a bit,LEAVE_ROOM
+Let me out,LEAVE_ROOM
+Time to go out,LEAVE_ROOM
+Stepping outside,LEAVE_ROOM
+Out we go,LEAVE_ROOM
+Open up I'm going,LEAVE_ROOM
+Away for a while,LEAVE_ROOM
+Going for some fresh air,LEAVE_ROOM
+See you later I'm off,LEAVE_ROOM
+I'm back,RETURN_TO_ROOM
+I have returned,RETURN_TO_ROOM
+Back again,RETURN_TO_ROOM
+Home now,RETURN_TO_ROOM
+Returned from outside,RETURN_TO_ROOM
+Put me back where I was,RETURN_TO_ROOM
+Back to my room please,RETURN_TO_ROOM
+I've come back in,RETURN_TO_ROOM
+Made it back,RETURN_TO_ROOM
+Return me to where I was,RETURN_TO_ROOM
+Ready for my food now,PREPARE_FOR_MEAL
+Get things ready for dinner,PREPARE_FOR_MEAL
+Prepare the table for my meal,PREPARE_FOR_MEAL
+Lunch time,PREPARE_FOR_MEAL
+Time to eat,PREPARE_FOR_MEAL
+Sort out the dining area,PREPARE_FOR_MEAL
+Something to eat now,PREPARE_FOR_MEAL
+Set up for supper,PREPARE_FOR_MEAL
+Food please,PREPARE_FOR_MEAL
+Get the meal room sorted,PREPARE_FOR_MEAL
+Medicine time,MEDICATION
+Time for my pills,MEDICATION
+Sort out my tablets,MEDICATION
+My dose is due,MEDICATION
+Give me my prescription,MEDICATION
+The tablets please,MEDICATION
+Time to take my treatment,MEDICATION
+Dispense my medicine,MEDICATION
+My drugs are due now,MEDICATION
+Bring the medication,MEDICATION
+Close the house down,SHUTDOWN_ENVIRONMENT
+Everything off please,SHUTDOWN_ENVIRONMENT
+Shut it all down,SHUTDOWN_ENVIRONMENT
+Power down the place,SHUTDOWN_ENVIRONMENT
+Switch the whole lot off,SHUTDOWN_ENVIRONMENT
+Nothing should be left on,SHUTDOWN_ENVIRONMENT
+Close everything up,SHUTDOWN_ENVIRONMENT
+Turn the house off,SHUTDOWN_ENVIRONMENT
+All systems off,SHUTDOWN_ENVIRONMENT
+Wind the whole place down,SHUTDOWN_ENVIRONMENT
+Help there's a fire,EMERGENCY
+I've fallen and can't get up,EMERGENCY
+Smoke everywhere get help,EMERGENCY
+I'm stuck and need someone,EMERGENCY
+Can't breathe properly,EMERGENCY
+My chest is hurting badly,EMERGENCY
+I've hurt myself badly,EMERGENCY
+Get someone here now,EMERGENCY
+Something's very wrong help,EMERGENCY
+I need an ambulance quickly,EMERGENCY
+All clear now,EMERGENCY_CLEAR
+It's over,EMERGENCY_CLEAR
+Everything's fine again,EMERGENCY_CLEAR
+Turn the alarm off,EMERGENCY_CLEAR
+No emergency any more,EMERGENCY_CLEAR
+We're safe,EMERGENCY_CLEAR
+The situation has resolved,EMERGENCY_CLEAR
+Stand down,EMERGENCY_CLEAR
+Danger's gone,EMERGENCY_CLEAR
+Alarm off please,EMERGENCY_CLEAR

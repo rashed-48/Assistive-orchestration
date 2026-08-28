@@ -12,6 +12,30 @@ class Room(str, Enum):
     MEAL_ROOM = "MEAL_ROOM"
 
 
+class LocationStatus(str, Enum):
+    """How much the system actually knows about where the person is.
+
+    Deliberately NOT members of Room. Room is used as a dictionary key
+    in the transition tables and is pattern-matched by long if/elif
+    chains that have no fallback branch, so an "UNKNOWN room" would be
+    silently unroutable rather than loudly rejected. Uncertainty is a
+    property *of* the location reading, not a place someone can be.
+    """
+
+    # current_room is a committed fact: the last movement workflow
+    # completed and every action in it was acknowledged.
+    KNOWN = "KNOWN"
+
+    # A movement workflow is running. current_room still holds the
+    # source room; the destination is not committed yet.
+    IN_TRANSIT = "IN_TRANSIT"
+
+    # The system cannot say where the person is. current_room holds the
+    # last place they were known to be, which must not be treated as
+    # their present location.
+    UNKNOWN = "UNKNOWN"
+
+
 class Mode(str, Enum):
     NONE = "NONE"
     STUDY = "STUDY"
@@ -65,9 +89,29 @@ class MealRoomState(RoomState):
 
 @dataclass
 class EnvironmentState:
+    # The last committed location. Only a present-tense claim about the
+    # person while location_status is KNOWN.
     current_room: Room = Room.OUTSIDE
+
+    location_status: LocationStatus = LocationStatus.KNOWN
+
+    # Where a movement workflow is heading. Set only while IN_TRANSIT,
+    # so an interrupted move records both ends of the journey.
+    location_destination: Optional[Room] = None
+
+    # Why the location is not KNOWN, for the operator and for the
+    # future persistence layer to report on restart.
+    location_reason: Optional[str] = None
+
     return_target: Optional[Room] = None
     current_mode: Mode = Mode.NONE
+
+    # Explicit emergency lifecycle, so a restart can tell "an emergency
+    # was declared and never cleared" from "the mode happens to read
+    # EMERGENCY". current_mode is the runtime latch; these two are the
+    # durable record of how it got there.
+    emergency_declared_at: Optional[str] = None
+    emergency_cleared_at: Optional[str] = None
 
     drawing_light: PowerState = PowerState.OFF
 

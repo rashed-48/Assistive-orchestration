@@ -110,7 +110,7 @@ class AudioRecorder:
                 indata.copy()
             )
 
-        print("🎤 Listening...")
+        print(" Listening...")
 
         with sd.InputStream(
             samplerate=self.sample_rate,
@@ -165,7 +165,7 @@ class AudioRecorder:
         )
 
         # --------------------------------------------------
-        # Convert float32 → int16
+        # Convert float32 -> int16
         # --------------------------------------------------
 
         audio_int16 = (

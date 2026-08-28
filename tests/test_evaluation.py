@@ -36,7 +36,7 @@ for _, row in validation.iterrows():
 
     # Only count an intent prediction
     # when the decision layer accepts it.
-    if result["decision"] == "ACCEPTED":
+    if result["decision"] == "PREDICTED":
 
         y_pred.append(result["intent"])
         accepted_count += 1

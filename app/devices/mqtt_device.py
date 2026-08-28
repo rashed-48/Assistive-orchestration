@@ -71,30 +71,36 @@ class MQTTDeviceExecutor:
 
         total_attempts = max_retries + 1
 
-        last_command_id = None
+        # ------------------------------------------------------
+        # One command ID for this logical action, reused by every
+        # attempt.
+        #
+        # A retry happens because an acknowledgement did not arrive,
+        # not because the action did not happen. Giving each attempt a
+        # fresh id made a retry indistinguishable from a new command,
+        # so a lost ACK could open the same door twice. Keeping the id
+        # stable lets the node recognise the retry and re-acknowledge
+        # instead of re-executing.
+        # ------------------------------------------------------
+
+        command_id = str(
+            uuid.uuid4()
+        )
+
+        last_command_id = command_id
+
+        command_payload = dict(
+            payload
+        )
+
+        command_payload[
+            "command_id"
+        ] = command_id
 
         for attempt in range(
             1,
             total_attempts + 1
         ):
-
-            # --------------------------------------------------
-            # New command ID for every attempt
-            # --------------------------------------------------
-
-            command_id = str(
-                uuid.uuid4()
-            )
-
-            last_command_id = command_id
-
-            command_payload = dict(
-                payload
-            )
-
-            command_payload[
-                "command_id"
-            ] = command_id
 
             print(
                 "\n" + "=" * 60
@@ -105,27 +111,27 @@ class MQTTDeviceExecutor:
             )
 
             print(
-                f"[MQTT] Attempt     → "
+                f"[MQTT] Attempt     -> "
                 f"{attempt}/{total_attempts}"
             )
 
             print(
-                f"[MQTT] Node        → "
+                f"[MQTT] Node        -> "
                 f"{node}"
             )
 
             print(
-                f"[MQTT] Device      → "
+                f"[MQTT] Device      -> "
                 f"{device_id}"
             )
 
             print(
-                f"[MQTT] Action      → "
+                f"[MQTT] Action      -> "
                 f"{action.action_type.value}"
             )
 
             print(
-                f"[MQTT] Command ID  → "
+                f"[MQTT] Command ID  -> "
                 f"{command_id}"
             )
 
@@ -168,12 +174,12 @@ class MQTTDeviceExecutor:
                     )
 
                     print(
-                        f"[MQTT] Attempt    → "
+                        f"[MQTT] Attempt    -> "
                         f"{attempt}"
                     )
 
                     print(
-                        f"[MQTT] Command ID → "
+                        f"[MQTT] Command ID -> "
                         f"{command_id}"
                     )
 
@@ -239,15 +245,15 @@ class MQTTDeviceExecutor:
             )
 
             print(
-                f"[MQTT] Node   → {node}"
+                f"[MQTT] Node   -> {node}"
             )
 
             print(
-                f"[MQTT] Device → {device_id}"
+                f"[MQTT] Device -> {device_id}"
             )
 
             print(
-                f"[MQTT] Action → "
+                f"[MQTT] Action -> "
                 f"{action.action_type.value}"
             )
 

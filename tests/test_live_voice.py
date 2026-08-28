@@ -69,7 +69,7 @@ def record_until_space():
             indata.copy()
         )
 
-    print("🎤 Listening...")
+    print(" Listening...")
 
     with sd.InputStream(
         samplerate=SAMPLE_RATE,
@@ -186,8 +186,7 @@ print("\nLoading Intent Recognizer...")
 
 recognizer = IntentRecognizer(
     "data/intents.csv",
-    similarity_threshold=0.65,
-    margin_threshold=0.20
+    similarity_threshold=0.65
 )
 
 print("Intent recognizer loaded successfully.")
@@ -272,14 +271,6 @@ print(
     )
 )
 
-
-print("\nMargin:")
-print(
-    round(
-        result["margin"],
-        4
-    )
-)
 
 
 # ==========================================================

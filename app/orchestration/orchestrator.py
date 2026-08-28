@@ -9,14 +9,75 @@ from app.orchestration.state import (
 )
 
 
+class EmergencyActive(Exception):
+    """A normal workflow was requested while the environment is in emergency."""
+
+    def __init__(self, intent):
+        self.intent = intent
+
+        super().__init__(
+            f"{intent} is blocked: the environment is in emergency. "
+            f"Clear the emergency first."
+        )
+
+
+class LocationUnknown(Exception):
+    """A workflow needs to know where the person is, and the system does not."""
+
+    def __init__(self, intent, status, last_known=None):
+        self.intent = intent
+        self.status = status
+        self.last_known = last_known
+
+        super().__init__(
+            f"{intent} needs a known location, but the location is "
+            f"{status.value}"
+            + (f" (last known: {last_known.value})" if last_known else "")
+            + ". Confirm where the person is before continuing."
+        )
+
+
+class ActionNotAcknowledged(Exception):
+    """A device did not confirm an action, so no state was committed."""
+
+    def __init__(self, action, result):
+        self.action = action
+        self.result = result
+
+        super().__init__(
+            f"No successful acknowledgement for "
+            f"{action.action_type.value} {action.device_id}: {result!r}"
+        )
+
+
 class Orchestrator:
+
+    # Intents that stay available once the emergency latch is set.
+    EMERGENCY_INTENTS = frozenset({"EMERGENCY", "EMERGENCY_CLEAR"})
+
+    # Safety workflows attempt every action even if one fails. An alarm
+    # must not be abandoned because a single door did not answer.
+    BEST_EFFORT_INTENTS = frozenset({"EMERGENCY", "EMERGENCY_CLEAR"})
+
+    # Everything else plans from the person's current room, so it needs
+    # that room to be a fact. Emergency handling deliberately does not:
+    # it opens every door and sounds the alarm regardless of where
+    # anyone is, which is exactly what makes it usable when the location
+    # is in doubt.
+    LOCATION_INDEPENDENT_INTENTS = frozenset({"EMERGENCY", "EMERGENCY_CLEAR"})
 
     def __init__(
         self,
         context,
-        device_executor
+        device_executor,
+        action_observer=None
     ):
         self.context = context
+
+        # Called after an action has been acknowledged AND its logical
+        # commit has happened. The Orchestrator knows nothing about what
+        # the observer does with it; persistence lives in the runtime.
+        self.action_observer = action_observer
 
         self.workflow_engine = WorkflowEngine(
             context
@@ -52,6 +113,9 @@ class Orchestrator:
             "EMERGENCY":
                 self.workflow_engine.create_emergency_workflow,
 
+            "EMERGENCY_CLEAR":
+                self.workflow_engine.create_emergency_clear_workflow,
+
             "SHUTDOWN_ENVIRONMENT":
                 self.workflow_engine.create_shutdown_workflow,
         }
@@ -67,12 +131,57 @@ class Orchestrator:
                 f"Unsupported intent: {intent}"
             )
 
+        # ------------------------------------------------------
+        # EMERGENCY LATCH
+        #
+        # While the environment is in emergency, only emergency
+        # handling and emergency recovery may run. Blocked commands
+        # are refused outright: nothing is queued, nothing is
+        # partially executed, and the latch is untouched.
+        # ------------------------------------------------------
+
+        emergency_is_active = (
+            self.context.get_current_mode() == Mode.EMERGENCY
+        )
+
+        if (
+            emergency_is_active
+            and intent not in self.EMERGENCY_INTENTS
+        ):
+            raise EmergencyActive(intent)
+
+        if (
+            intent == "EMERGENCY_CLEAR"
+            and not emergency_is_active
+        ):
+            raise ValueError(
+                "There is no active emergency to clear."
+            )
+
+        # ------------------------------------------------------
+        # LOCATION CERTAINTY
+        #
+        # Planning from a location the system is not sure about
+        # would send the person through doors based on a guess.
+        # Refuse instead, and say what needs resolving.
+        # ------------------------------------------------------
+
+        if (
+            not self.context.location_is_known()
+            and intent not in self.LOCATION_INDEPENDENT_INTENTS
+        ):
+            raise LocationUnknown(
+                intent,
+                self.context.get_location_status(),
+                self.context.get_current_room(),
+            )
+
         print("\n" + "=" * 70)
         print("ORCHESTRATION")
         print("=" * 70)
 
         print(
-            f"Intent → {intent}"
+            f"Intent -> {intent}"
         )
 
         # ------------------------------------------------------
@@ -91,9 +200,48 @@ class Orchestrator:
         # Generate workflow
         # ------------------------------------------------------
 
+        # ------------------------------------------------------
+        # Latch the emergency before touching any hardware.
+        #
+        # Emergency mode is a system posture, not a claim about the
+        # physical world, so it must not wait for devices to
+        # cooperate. A partly-failed alarm is still an emergency.
+        # Device and location state continue to follow
+        # acknowledgements as normal.
+        # ------------------------------------------------------
+
+        if intent == "EMERGENCY":
+            self.context.set_mode(
+                Mode.EMERGENCY
+            )
+
+            # Durable evidence of the declaration, so a restart can
+            # restore the latch instead of inheriting a fresh Mode.NONE.
+            self.context.declare_emergency()
+
         workflow_builder = self.workflow_map[intent]
 
         actions = workflow_builder()
+
+        # ------------------------------------------------------
+        # Is this workflow going to move the person?
+        #
+        # Worked out before execution so an interrupted move can
+        # record both ends of the journey.
+        # ------------------------------------------------------
+
+        destination = self._destination_for(intent)
+
+        is_movement = (
+            destination is not None
+            and destination != previous_room
+        )
+
+        if is_movement:
+            self.context.begin_transit(
+                destination,
+                reason=f"{intent} in progress",
+            )
 
         print(
             f"Generated {len(actions)} actions."
@@ -115,9 +263,9 @@ class Orchestrator:
         # Execute actions ONE BY ONE
         #
         # action succeeds
-        #       ↓
+        #       v
         # update physical/logical device state
-        #       ↓
+        #       v
         # next action
         #
         # If any action fails, execution stops and
@@ -130,21 +278,76 @@ class Orchestrator:
         print("EXECUTING WORKFLOW")
         print("=" * 70)
 
+        best_effort = intent in self.BEST_EFFORT_INTENTS
+
+        # A person can only leave a room through a door. If no door was
+        # opened, an interrupted workflow cannot have moved them, and
+        # the source room is still an honest answer.
+        doors_opened = False
+
         for action in actions:
 
-            result = self.device_executor.execute(
-                action
-            )
+            try:
+                result = self.device_executor.execute(
+                    action
+                )
+
+            except Exception as error:
+
+                if not best_effort:
+                    self._abandon_transit(
+                        is_movement, doors_opened, previous_room, intent
+                    )
+                    raise
+
+                # A safety workflow keeps going: the next door may
+                # still be reachable.
+                print(
+                    f"[STATE] Action failed -> "
+                    f"{action.action_type.value} -> "
+                    f"{action.device_id}: {error}"
+                )
+
+                results.append(
+                    self._failure_result(action, error)
+                )
+
+                continue
 
             results.append(result)
 
-            # Update device state only after successful ACK
-            self._apply_successful_action(
-                action
+            # ----------------------------------------------
+            # F5: commit only what the device confirmed.
+            # ----------------------------------------------
+
+            if self._is_acknowledged(result, action):
+
+                if action.action_type == ActionType.OPEN_DOOR:
+                    doors_opened = True
+
+                self._apply_successful_action(
+                    action
+                )
+
+                self._observe(intent, action, result)
+
+                continue
+
+            if not best_effort:
+                self._abandon_transit(
+                    is_movement, doors_opened, previous_room, intent
+                )
+                raise ActionNotAcknowledged(action, result)
+
+            print(
+                f"[STATE] Not acknowledged -> "
+                f"{action.action_type.value} -> "
+                f"{action.device_id}"
             )
 
         # ------------------------------------------------------
-        # ALL actions succeeded.
+        # Every action was acknowledged, or this is a safety
+        # workflow that ran best effort.
         #
         # Now update the user's logical location and mode.
         # ------------------------------------------------------
@@ -152,8 +355,16 @@ class Orchestrator:
         self._update_location_and_mode(
             intent=intent,
             previous_room=previous_room,
-            previous_mode=previous_mode
+            previous_mode=previous_mode,
+            results=results
         )
+
+        # The move completed and every action was acknowledged, so the
+        # room the Orchestrator just committed is now a fact.
+        if is_movement:
+            self.context.confirm_location(
+                self.context.get_current_room()
+            )
 
         # ------------------------------------------------------
         # Workflow completed
@@ -176,6 +387,135 @@ class Orchestrator:
         return results
 
     # ==========================================================
+    # LOCATION
+    # ==========================================================
+
+    def _destination_for(self, intent):
+        """Where this intent intends to leave the person, if anywhere.
+
+        Mirrors the commit rules in _update_location_and_mode. An
+        intent that does not move the person returns None.
+        """
+
+        moves_to = {
+            "STUDY_MODE": Room.STUDY_ROOM,
+            "RELAX_MODE": Room.RELAX_ROOM,
+            "PREPARE_FOR_SLEEP": Room.SLEEP_ROOM,
+            "PREPARE_FOR_MEAL": Room.MEAL_ROOM,
+            "MEDICATION": Room.SLEEP_ROOM,
+            "LEAVE_ROOM": Room.OUTSIDE,
+            "SHUTDOWN_ENVIRONMENT": Room.OUTSIDE,
+        }
+
+        if intent in moves_to:
+            return moves_to[intent]
+
+        if intent == "RETURN_TO_ROOM":
+            return self.context.get_return_target()
+
+        # WAKE_UP, EMERGENCY and EMERGENCY_CLEAR leave the person where
+        # they are.
+        return None
+
+    def _observe(self, intent, action, result):
+        """Tell the observer an action was acknowledged and committed.
+
+        Never allowed to break a workflow: a recording failure must not
+        stop the house responding.
+        """
+
+        if self.action_observer is None:
+            return
+
+        try:
+            self.action_observer(intent, action, result)
+        except Exception as error:
+            print(f"[STATE] Could not record action: {error}")
+
+    def _abandon_transit(
+        self,
+        is_movement,
+        doors_opened,
+        previous_room,
+        intent,
+    ):
+        """A movement workflow stopped part way. Say what is still true.
+
+        If no door was opened the person cannot have left, so the
+        source room is still honest. Once a door has opened they may be
+        anywhere along the route, and the only truthful answer is that
+        the system does not know.
+        """
+
+        if not is_movement:
+            return
+
+        if doors_opened:
+            self.context.mark_location_unknown(
+                reason=f"{intent} was interrupted after a door opened",
+            )
+            return
+
+        self.context.confirm_location(
+            previous_room,
+            reason=None,
+        )
+
+    # ==========================================================
+    # ACKNOWLEDGEMENT VALIDATION  (F5)
+    # ==========================================================
+
+    @staticmethod
+    def _failure_result(action, error):
+
+        return {
+            "status": "error",
+            "device": action.device_id,
+            "action": action.action_type.value,
+            "error": str(error),
+        }
+
+    @staticmethod
+    def _is_acknowledged(result, action):
+        """Is this a successful acknowledgement of THIS action?
+
+        Logical state is only allowed to move when a device confirms
+        it moved. A timeout, a rejection, a malformed reply, or a
+        reply about some other device must all leave state alone.
+
+        Transports correlate replies by command_id before they get
+        here; this is the layer that refuses to trust the payload
+        blindly.
+        """
+
+        if not isinstance(result, dict):
+            return False
+
+        if result.get("status") != "success":
+            return False
+
+        device = result.get("device")
+        if device is not None and device != action.device_id:
+            return False
+
+        reported = result.get("action")
+        if (
+            reported is not None
+            and reported != action.action_type.value
+        ):
+            return False
+
+        return True
+
+    @staticmethod
+    def _all_acknowledged(results):
+        return all(
+            isinstance(result, dict)
+            and result.get("status") == "success"
+            for result in results
+        )
+
+    # ==========================================================
     # UPDATE LOCATION + MODE
     # ==========================================================
 
@@ -183,8 +523,40 @@ class Orchestrator:
         self,
         intent,
         previous_room,
-        previous_mode
+        previous_mode,
+        results=()
     ):
+
+        # ------------------------------------------------------
+        # EMERGENCY
+        #
+        # The mode was latched before execution began, and a failed
+        # emergency action must never undo that. Nothing to do here.
+        # ------------------------------------------------------
+
+        if intent == "EMERGENCY":
+            return
+
+        # ------------------------------------------------------
+        # EMERGENCY_CLEAR
+        #
+        # Recovery is only complete when every required safety
+        # action was confirmed. If anything failed, the latch holds
+        # and the user can retry: the clear workflow is state aware,
+        # so a retry asks only for what is still outstanding.
+        # ------------------------------------------------------
+
+        if intent == "EMERGENCY_CLEAR":
+
+            if self._all_acknowledged(results):
+
+                self.context.set_mode(
+                    Mode.NONE
+                )
+
+                self.context.clear_emergency()
+
+            return
 
         # ------------------------------------------------------
         # Normal room-based intents
@@ -211,6 +583,20 @@ class Orchestrator:
         if intent in destination_map:
 
             destination = destination_map[intent]
+
+            # The room the user just left becomes the room to come back
+            # to. OUTSIDE and DRAWING_ROOM are not returnable locations,
+            # matching the guard the LEAVE_ROOM branch already uses.
+            if (
+                previous_room != destination
+                and previous_room not in (
+                    Room.OUTSIDE,
+                    Room.DRAWING_ROOM
+                )
+            ):
+                self.context.set_return_target(
+                    previous_room
+                )
 
             self.context.set_current_room(
                 destination
@@ -342,31 +728,19 @@ class Orchestrator:
 
         if intent == "WAKE_UP":
 
-    # The person wakes up inside the sleep room.
-    # They do NOT leave the room.
-         if previous_room == Room.SLEEP_ROOM:
+            # The person wakes up inside the sleep room.
+            # They do NOT leave the room, so only the mode changes.
+            #
+            # Waking up anywhere else generates no actions, and a
+            # workflow that did nothing must not mutate state.
+            if previous_room == Room.SLEEP_ROOM:
 
-          self.context.set_current_room(
-            Room.SLEEP_ROOM
-        )
-
-        self.context.set_mode(
-            Mode.NONE
-        )
-
-        return
-
-        # ------------------------------------------------------
-        # EMERGENCY
-        #
-        # Your emergency workflow opens the exit and then
-        # closes it. We therefore don't automatically assume
-        # the user changed location here.
-        # ------------------------------------------------------
-
-        if intent == "EMERGENCY":
+                self.context.set_mode(
+                    Mode.NONE
+                )
 
             return
+
 
     # ==========================================================
     # APPLY SUCCESSFUL ACTION TO LOGICAL STATE
@@ -378,8 +752,8 @@ class Orchestrator:
         device = action.device_id
 
         print(
-            f"[STATE] Applying → "
-            f"{action_type.value} → {device}"
+            f"[STATE] Applying -> "
+            f"{action_type.value} -> {device}"
         )
 
         # ------------------------------------------------------

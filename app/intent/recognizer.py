@@ -2,13 +2,15 @@ import pandas as pd
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 
+from app.intent import DEFAULT_SIMILARITY_THRESHOLD
+
 
 class IntentRecognizer:
 
     def __init__(
         self,
         dataset_path,
-        similarity_threshold=0.60
+        similarity_threshold=DEFAULT_SIMILARITY_THRESHOLD
     ):
 
         self.model = SentenceTransformer(

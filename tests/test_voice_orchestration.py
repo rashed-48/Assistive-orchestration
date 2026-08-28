@@ -82,11 +82,11 @@ def main():
         return
 
     print("\n" + "=" * 70)
-    print("VOICE → ORCHESTRATION")
+    print("VOICE -> ORCHESTRATION")
     print("=" * 70)
 
     print(
-        f"Intent → {intent}"
+        f"Intent -> {intent}"
     )
 
     # ==========================================================

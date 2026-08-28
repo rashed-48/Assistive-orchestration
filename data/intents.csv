@@ -69,7 +69,6 @@ I need help urgently,EMERGENCY
 Something has gone very wrong,EMERGENCY
 I need assistance now,EMERGENCY
 This situation is dangerous,EMERGENCY
-
 I am ready for bed,PREPARE_FOR_SLEEP
 I think it is time to sleep,PREPARE_FOR_SLEEP
 I am getting ready to sleep,PREPARE_FOR_SLEEP
@@ -80,7 +79,6 @@ It is almost bedtime,PREPARE_FOR_SLEEP
 I want to sleep now,PREPARE_FOR_SLEEP
 I am feeling sleepy,PREPARE_FOR_SLEEP
 Help me prepare for the night,PREPARE_FOR_SLEEP
-
 I want to unwind,RELAX_MODE
 I need to unwind for a while,RELAX_MODE
 I want to take it easy,RELAX_MODE
@@ -88,13 +86,10 @@ I need some time to relax,RELAX_MODE
 I just want to chill for a while,RELAX_MODE
 Make the environment relaxing,RELAX_MODE
 I want a comfortable environment,RELAX_MODE
-I need some quiet time,RELAX_MODE
 I want to sit and relax,RELAX_MODE
 I want to relax without going to sleep,RELAX_MODE
 I want to rest now,RELAX_MODE
 I want to take a break,RELAX_MODE
-
-
 I need to focus on my coursework,STUDY_MODE
 I have some coursework to finish,STUDY_MODE
 I need to concentrate on my studies,STUDY_MODE
@@ -105,7 +100,6 @@ I need a quiet environment for studying,STUDY_MODE
 I need to focus on my assignment,STUDY_MODE
 I have some studying to do,STUDY_MODE
 I want to work on my studies,STUDY_MODE
-
 I have just gotten out of bed,WAKE_UP
 I am awake now,WAKE_UP
 I just woke up this morning,WAKE_UP
@@ -116,7 +110,6 @@ I have woken up,WAKE_UP
 I am awake and ready to begin,WAKE_UP
 I just got up,WAKE_UP
 I am starting my morning,WAKE_UP
-
 I need to leave this room,LEAVE_ROOM
 Help me get out of here,LEAVE_ROOM
 I want to go outside,LEAVE_ROOM
@@ -127,7 +120,6 @@ I want to go outdoors,LEAVE_ROOM
 I need to leave now,LEAVE_ROOM
 Take me outside,LEAVE_ROOM
 I want to exit the room,LEAVE_ROOM
-
 I want to come back inside,RETURN_TO_ROOM
 Help me return to my room,RETURN_TO_ROOM
 Take me back inside,RETURN_TO_ROOM
@@ -138,9 +130,7 @@ I want to come back to the room,RETURN_TO_ROOM
 Help me get back inside,RETURN_TO_ROOM
 I need to go back indoors,RETURN_TO_ROOM
 Take me back to my room,RETURN_TO_ROOM
-
 I need to take my pills,MEDICATION
-I need my medication now,MEDICATION
 It is time for my pills,MEDICATION
 I have to take my medicine,MEDICATION
 I need help with my medication,MEDICATION
@@ -149,7 +139,6 @@ I need my pills right now,MEDICATION
 My medication is due,MEDICATION
 I should take my medicine now,MEDICATION
 Please prepare my medication,MEDICATION
-
 I am hungry and ready to eat,PREPARE_FOR_MEAL
 Please prepare my meal,PREPARE_FOR_MEAL
 I want to have dinner,PREPARE_FOR_MEAL
@@ -160,7 +149,6 @@ I want my food,PREPARE_FOR_MEAL
 Please get the dining area ready,PREPARE_FOR_MEAL
 I am ready for my food,PREPARE_FOR_MEAL
 Prepare everything for dinner,PREPARE_FOR_MEAL
-
 Turn off everything around me,SHUTDOWN_ENVIRONMENT
 Switch off all the devices,SHUTDOWN_ENVIRONMENT
 Please shut everything down,SHUTDOWN_ENVIRONMENT
@@ -171,3 +159,156 @@ Stop all active devices,SHUTDOWN_ENVIRONMENT
 Power down the environment,SHUTDOWN_ENVIRONMENT
 Turn off all connected devices,SHUTDOWN_ENVIRONMENT
 Shut down everything,SHUTDOWN_ENVIRONMENT
+The emergency is over,EMERGENCY_CLEAR
+Clear the emergency,EMERGENCY_CLEAR
+Cancel the emergency,EMERGENCY_CLEAR
+Everything is safe now,EMERGENCY_CLEAR
+I am safe now,EMERGENCY_CLEAR
+Stop the alarm,EMERGENCY_CLEAR
+Turn off the alarm,EMERGENCY_CLEAR
+Silence the alarm,EMERGENCY_CLEAR
+The alarm can stop now,EMERGENCY_CLEAR
+It is all clear,EMERGENCY_CLEAR
+The situation is resolved,EMERGENCY_CLEAR
+There is no more danger,EMERGENCY_CLEAR
+Everything is fine again,EMERGENCY_CLEAR
+You can stand down now,EMERGENCY_CLEAR
+End the emergency,EMERGENCY_CLEAR
+There is a fire in the house,EMERGENCY
+The room is on fire,EMERGENCY
+Something has caught fire,EMERGENCY
+I see flames,EMERGENCY
+I smell smoke and need help,EMERGENCY
+The house is filling with smoke,EMERGENCY
+I have fallen and cannot get up,EMERGENCY
+I have had a fall,EMERGENCY
+I fell and I need help,EMERGENCY
+I am badly injured,EMERGENCY
+I am bleeding and need help,EMERGENCY
+I am hurt and cannot move,EMERGENCY
+I am trapped and need help,EMERGENCY
+I am trapped inside,EMERGENCY
+I cannot escape,EMERGENCY
+I am stuck and need help,EMERGENCY
+I am unable to get out and need help,EMERGENCY
+I am having trouble breathing,EMERGENCY
+I cannot breathe properly,EMERGENCY
+I have severe chest pain,EMERGENCY
+I am very dizzy and need help,EMERGENCY
+I am having a medical emergency,EMERGENCY
+I feel like I am going to collapse,EMERGENCY
+The situation is under control,EMERGENCY_CLEAR
+I do not need emergency help anymore,EMERGENCY_CLEAR
+The danger is over,EMERGENCY_CLEAR
+You can stop the alarm now,EMERGENCY_CLEAR
+There is no emergency any more,EMERGENCY_CLEAR
+We are safe again,EMERGENCY_CLEAR
+The room is full of smoke,EMERGENCY
+There is smoke coming under the door,EMERGENCY
+I have slipped and hurt myself,EMERGENCY
+I have injured myself and cannot move,EMERGENCY
+I am about to pass out,EMERGENCY
+I feel faint and unwell,EMERGENCY
+Send help right away,EMERGENCY
+Please get someone here quickly,EMERGENCY
+I need an ambulance,EMERGENCY
+Something awful has happened to me,EMERGENCY
+Everything has settled down,EMERGENCY_CLEAR
+The problem has been sorted out,EMERGENCY_CLEAR
+I am alright now,EMERGENCY_CLEAR
+It has all been dealt with,EMERGENCY_CLEAR
+Help is no longer needed,EMERGENCY_CLEAR
+The worst is over,EMERGENCY_CLEAR
+The alarm is no longer needed,EMERGENCY_CLEAR
+Nothing more is wrong,EMERGENCY_CLEAR
+The incident is over,EMERGENCY_CLEAR
+The crisis has ended,EMERGENCY_CLEAR
+The trouble is finished,EMERGENCY_CLEAR
+Everything is normal again,EMERGENCY_CLEAR
+We do not need help any more,EMERGENCY_CLEAR
+Time to get up,WAKE_UP
+Time to rise,WAKE_UP
+Start the day for me,WAKE_UP
+Morning routine please,WAKE_UP
+I have finished my sleep,WAKE_UP
+Open things up it is morning,WAKE_UP
+Morning has arrived,WAKE_UP
+Sleeping is done for now,WAKE_UP
+Bring the room to life,WAKE_UP
+Time to be awake,WAKE_UP
+Time to turn in,PREPARE_FOR_SLEEP
+Settle the room for the night,PREPARE_FOR_SLEEP
+Make the room dark for sleeping,PREPARE_FOR_SLEEP
+Wind down for bedtime,PREPARE_FOR_SLEEP
+I am heading to bed,PREPARE_FOR_SLEEP
+Quiet and dark please I am sleeping,PREPARE_FOR_SLEEP
+Close things down for the night,PREPARE_FOR_SLEEP
+Ready for bed now,PREPARE_FOR_SLEEP
+Put the television on,RELAX_MODE
+I would like to watch something,RELAX_MODE
+Turn the TV on for me,RELAX_MODE
+Time to unwind for a while,RELAX_MODE
+Put on a programme,RELAX_MODE
+Let me relax for a bit,RELAX_MODE
+Something on the screen please,RELAX_MODE
+Evening relaxation please,RELAX_MODE
+I feel like watching TV,RELAX_MODE
+Just want to relax now,RELAX_MODE
+Time to work,STUDY_MODE
+I need to focus on my work,STUDY_MODE
+Prepare my desk for reading,STUDY_MODE
+I have homework to do,STUDY_MODE
+Time for revision,STUDY_MODE
+I must concentrate now,STUDY_MODE
+Get the study room ready,STUDY_MODE
+Let me get on with my work,STUDY_MODE
+Reading time,STUDY_MODE
+I must finish my assignment,STUDY_MODE
+I am heading out now,LEAVE_ROOM
+Open the door I am leaving,LEAVE_ROOM
+On my way out,LEAVE_ROOM
+Time to head outside,LEAVE_ROOM
+I am going for a walk,LEAVE_ROOM
+Taking myself outside,LEAVE_ROOM
+I will be out for a while,LEAVE_ROOM
+Off I go,LEAVE_ROOM
+Show me out please,LEAVE_ROOM
+Getting some air outside,LEAVE_ROOM
+I am back now,RETURN_TO_ROOM
+I have come back inside,RETURN_TO_ROOM
+Back in my own room,RETURN_TO_ROOM
+I have arrived home,RETURN_TO_ROOM
+I returned just now,RETURN_TO_ROOM
+Take me to my room again,RETURN_TO_ROOM
+I have returned indoors,RETURN_TO_ROOM
+Bring me back inside,RETURN_TO_ROOM
+Back where I belong,RETURN_TO_ROOM
+I have got back,RETURN_TO_ROOM
+Close the whole house down,SHUTDOWN_ENVIRONMENT
+Turn off all the devices,SHUTDOWN_ENVIRONMENT
+Nothing left running please,SHUTDOWN_ENVIRONMENT
+Power the house down,SHUTDOWN_ENVIRONMENT
+Shut the place up,SHUTDOWN_ENVIRONMENT
+End of day shutdown,SHUTDOWN_ENVIRONMENT
+Make sure everything is off,SHUTDOWN_ENVIRONMENT
+Time for my tablets,MEDICATION
+Hand me my tablets,MEDICATION
+Prepare my medicine,MEDICATION
+I have to take my dose,MEDICATION
+Bring my pills please,MEDICATION
+Time for lunch,PREPARE_FOR_MEAL
+Time for dinner now,PREPARE_FOR_MEAL
+Get ready for supper,PREPARE_FOR_MEAL
+I am ready for my meal,PREPARE_FOR_MEAL
+Prepare the dining table,PREPARE_FOR_MEAL
+Set things up for eating,PREPARE_FOR_MEAL
+Let me put my feet up,RELAX_MODE
+Time for some downtime,RELAX_MODE
+I want to sit back and do nothing,RELAX_MODE
+Make me comfortable for the evening,RELAX_MODE
+Set up the sitting room,RELAX_MODE
+Put something entertaining on,RELAX_MODE
+I am off outdoors,LEAVE_ROOM
+I am leaving for a while,LEAVE_ROOM
+Let me step outside,LEAVE_ROOM
+Time to be outside,LEAVE_ROOM

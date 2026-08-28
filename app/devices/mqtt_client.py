@@ -87,27 +87,27 @@ class MQTTClient:
             )
 
             print(
-                f"[MQTT] Command ID → "
+                f"[MQTT] Command ID -> "
                 f"{payload.get('command_id')}"
             )
 
             print(
-                f"[MQTT] Node       → "
+                f"[MQTT] Node       -> "
                 f"{payload.get('node')}"
             )
 
             print(
-                f"[MQTT] Device     → "
+                f"[MQTT] Device     -> "
                 f"{payload.get('device')}"
             )
 
             print(
-                f"[MQTT] Action     → "
+                f"[MQTT] Action     -> "
                 f"{payload.get('action')}"
             )
 
             print(
-                f"[MQTT] Status     → "
+                f"[MQTT] Status     -> "
                 f"{payload.get('status')}"
             )
 
@@ -150,12 +150,12 @@ class MQTTClient:
         if result.rc == mqtt.MQTT_ERR_SUCCESS:
 
             print(
-                f"[MQTT] Published → "
+                f"[MQTT] Published -> "
                 f"{topic}"
             )
 
             print(
-                f"[MQTT] Payload   → "
+                f"[MQTT] Payload   -> "
                 f"{payload}"
             )
 

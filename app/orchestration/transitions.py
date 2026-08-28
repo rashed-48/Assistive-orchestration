@@ -1,5 +1,5 @@
 from app.orchestration.actions import Action, ActionType
-from app.orchestration.state import Room
+from app.orchestration.state import PowerState, Room
 
 
 class TransitionBuilder:
@@ -20,6 +20,46 @@ class TransitionBuilder:
 
     def __init__(self, context):
         self.context = context
+
+    # ==========================================================
+    # DRAWING ROOM AS THE CENTRAL TRANSITION AREA
+    # ==========================================================
+
+    def uses_drawing_room(self, destination: Room) -> bool:
+        """Does reaching destination pass *through* the Drawing Room?
+
+        True only when the person traverses the corridor and ends up
+        somewhere else, which is exactly when the corridor light has to
+        be switched off behind them.
+
+        False when nobody moves, when the Drawing Room is itself the
+        destination (the person stays there, so the light stays on), and
+        when leaving the house (transition_to already turns the light off
+        on the way out).
+        """
+
+        current = self.context.get_current_room()
+
+        if current == destination:
+            return False
+
+        if destination in (Room.DRAWING_ROOM, Room.OUTSIDE):
+            return False
+
+        return True
+
+    def _light_drawing_room(self):
+        """Light the corridor, unless the state says it is already lit."""
+
+        if self.context.get_state().drawing_light == PowerState.ON:
+            return []
+
+        return [
+            Action(
+                ActionType.LIGHT_ON,
+                "drawing_light"
+            )
+        ]
 
     # ==========================================================
     # MAIN TRANSITION
@@ -132,11 +172,8 @@ class TransitionBuilder:
         )
 
         # Drawing room is the transition area
-        actions.append(
-            Action(
-                ActionType.LIGHT_ON,
-                "drawing_light"
-            )
+        actions.extend(
+            self._light_drawing_room()
         )
 
         # Drawing Room -> Destination
@@ -154,9 +191,17 @@ class TransitionBuilder:
 
     def _drawing_to_functional(self, destination):
 
-        return self._enter_functional_room(
-            destination
+        # The person is standing in the corridor and about to use it.
+        # It only needs lighting if it is currently dark.
+        actions = self._light_drawing_room()
+
+        actions.extend(
+            self._enter_functional_room(
+                destination
+            )
         )
+
+        return actions
 
     # ==========================================================
     # FUNCTIONAL ROOM -> FUNCTIONAL ROOM
@@ -219,11 +264,8 @@ class TransitionBuilder:
         # Turn on drawing room light
         # ------------------------------------------------------
 
-        actions.append(
-            Action(
-                ActionType.LIGHT_ON,
-                "drawing_light"
-            )
+        actions.extend(
+            self._light_drawing_room()
         )
 
         # ------------------------------------------------------
@@ -262,11 +304,7 @@ class TransitionBuilder:
                     ActionType.CLOSE_DOOR,
                     "exit_door"
                 ),
-                Action(
-                    ActionType.LIGHT_ON,
-                    "drawing_light"
-                ),
-            ]
+            ] + self._light_drawing_room()
 
         # Functional room -> Drawing Room
         current_door = self.ROOM_DOORS[current]
@@ -308,11 +346,8 @@ class TransitionBuilder:
         )
 
         # Turn on drawing room light
-        actions.append(
-            Action(
-                ActionType.LIGHT_ON,
-                "drawing_light"
-            )
+        actions.extend(
+            self._light_drawing_room()
         )
 
         return actions

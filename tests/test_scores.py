@@ -59,8 +59,6 @@ for sentence in test_sentences:
     print("\nSimilarity Score:")
     print(round(result["similarity_score"], 4))
 
-    print("\nMargin:")
-    print(round(result["margin"], 4))
 
     print("\nTop Results:")
 

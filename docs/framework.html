@@ -1,0 +1,692 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Assistive Orchestration — Framework &amp; Dependency Scheduler</title>
+<style>
+  @page { size: A4; margin: 16mm 15mm 14mm; }
+
+  :root{
+    --ink:#16212b; --muted:#5d6b78; --line:#d6dee2; --pale:#f4f7f7;
+    --teal:#0c7d79; --teal-dk:#075c5a; --teal-pale:#e7f3f1;
+    --amber:#a2701f; --amber-pale:#fdf3df; --red:#a5433d; --red-pale:#faeae9;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;color:var(--ink);font:11pt/1.55 "Segoe UI",Arial,sans-serif;
+       -webkit-print-color-adjust:exact;print-color-adjust:exact}
+  h1,h2,h3,h4{line-height:1.2;margin:0}
+  code,pre,.mono{font-family:"Cascadia Mono",Consolas,"Courier New",monospace}
+
+  /* ---------- cover ---------- */
+  .cover{height:262mm;display:flex;flex-direction:column;justify-content:center;
+         page-break-after:always;border-left:6px solid var(--teal);padding-left:14mm}
+  .cover .eyebrow{color:var(--teal);font-size:10pt;font-weight:800;letter-spacing:.14em;
+                  text-transform:uppercase;margin-bottom:10mm}
+  .cover h1{font-size:34pt;font-weight:800;letter-spacing:-.5pt;max-width:150mm}
+  .cover .sub{margin-top:6mm;font-size:14pt;color:var(--muted);max-width:150mm;line-height:1.5}
+  .cover .facts{margin-top:16mm;display:grid;grid-template-columns:repeat(4,1fr);gap:6mm;max-width:160mm}
+  .cover .facts div{border-top:2px solid var(--line);padding-top:3mm}
+  .cover .facts b{display:block;font-size:19pt;color:var(--teal-dk)}
+  .cover .facts span{font-size:8.5pt;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+  .cover .foot{margin-top:auto;padding-top:10mm;font-size:9pt;color:var(--muted)}
+
+  /* ---------- structure ---------- */
+  section{page-break-before:always}
+  section.cont{page-break-before:auto}
+  .sechead{display:flex;align-items:baseline;gap:5mm;border-bottom:2px solid var(--ink);
+           padding-bottom:2.5mm;margin-bottom:6mm}
+  .sechead .n{font:800 12pt/1 monospace;color:var(--teal)}
+  .sechead h2{font-size:17pt;font-weight:800}
+  h3{font-size:12pt;font-weight:700;margin:7mm 0 2.5mm;color:var(--teal-dk)}
+  h4{font-size:10pt;font-weight:700;margin:5mm 0 2mm}
+  p{margin:0 0 3mm}
+  ul,ol{margin:0 0 3mm;padding-left:5mm}
+  li{margin-bottom:1.2mm}
+  .lead{font-size:11.5pt;color:var(--muted);margin-bottom:5mm}
+
+  /* ---------- components ---------- */
+  table{width:100%;border-collapse:collapse;margin:3mm 0 5mm;font-size:9pt;page-break-inside:avoid}
+  th{text-align:left;background:var(--pale);border-bottom:1.5px solid var(--line);
+     padding:2mm 2.5mm;font-weight:700;font-size:8.5pt;text-transform:uppercase;letter-spacing:.04em}
+  td{padding:2mm 2.5mm;border-bottom:1px solid var(--line);vertical-align:top}
+  td.mono,th.mono{font-family:"Cascadia Mono",Consolas,monospace;font-size:8.5pt}
+  tr{page-break-inside:avoid}
+
+  pre{background:#0f1b22;color:#dfe8ec;padding:4mm 5mm;border-radius:2mm;font-size:8.5pt;
+      line-height:1.5;overflow:hidden;white-space:pre-wrap;page-break-inside:avoid;margin:3mm 0 5mm}
+  pre .c{color:#7d99a6}
+  pre .k{color:#7fd3c4}
+  pre .v{color:#f0c987}
+
+  .note{border-left:4px solid var(--teal);background:var(--teal-pale);padding:3.5mm 5mm;
+        margin:4mm 0;font-size:9.5pt;page-break-inside:avoid}
+  .warn{border-left:4px solid var(--amber);background:var(--amber-pale);padding:3.5mm 5mm;
+        margin:4mm 0;font-size:9.5pt;page-break-inside:avoid}
+  .crit{border-left:4px solid var(--red);background:var(--red-pale);padding:3.5mm 5mm;
+        margin:4mm 0;font-size:9.5pt;page-break-inside:avoid}
+  .note b,.warn b,.crit b{display:block;margin-bottom:1.5mm}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:5mm}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:4mm}
+  .card{border:1px solid var(--line);border-radius:2mm;padding:3.5mm 4mm;page-break-inside:avoid}
+  .card h4{margin-top:0;color:var(--teal-dk)}
+  .card p{font-size:9pt;color:var(--muted);margin:0}
+
+  figure{margin:4mm 0 6mm;page-break-inside:avoid}
+  figcaption{font-size:8.5pt;color:var(--muted);margin-top:2mm;font-style:italic}
+  svg{display:block;max-width:100%;height:auto}
+
+  .tag{display:inline-block;padding:.6mm 2mm;border-radius:1mm;font:700 7.5pt monospace;
+       letter-spacing:.03em;vertical-align:middle}
+  .t-ok{background:#e3f4ea;color:#146345}
+  .t-no{background:var(--red-pale);color:var(--red)}
+  .t-sim{background:var(--amber-pale);color:var(--amber)}
+
+  .kv{font-size:9pt}
+  .kv b{color:var(--teal-dk)}
+</style>
+</head>
+<body>
+
+<!-- ============================ COVER ============================ -->
+<div class="cover">
+  <div class="eyebrow">Technical Framework Document</div>
+  <h1>Assistive Orchestration</h1>
+  <div class="sub">A continuous, state-aware dependency scheduler for voice-controlled
+    multi-device assistive environments.</div>
+
+  <div class="facts">
+    <div><b>6,347</b><span>lines, application</span></div>
+    <div><b>495</b><span>automated tests</span></div>
+    <div><b>11</b><span>supported intents</span></div>
+    <div><b>16</b><span>devices / 3 nodes</span></div>
+  </div>
+
+  <div class="foot">
+    Architecture, scheduling model, execution semantics, safety envelope and
+    recovery behaviour.<br>
+    Generated from the implemented system — all figures measured, not estimated.
+  </div>
+</div>
+
+<!-- ============================ 1 ============================ -->
+<section class="cont">
+<div class="sechead"><span class="n">01</span><h2>What the system is</h2></div>
+
+<p class="lead">A person speaks. The system decides what has to happen in the physical
+environment to satisfy that request <em>from where things currently stand</em>, then carries
+it out across distributed devices and records only what the hardware confirmed.</p>
+
+<p>The distinguishing property is in the second step. A conventional voice-controlled home maps
+an utterance to a fixed command or a fixed script. This system treats the utterance as a
+<em>goal</em> and derives the action sequence from the current logical world — so the same
+sentence produces different work depending on the state of the house.</p>
+
+<h3>The claim, stated precisely</h3>
+<pre><span class="c"># A fixed-script system</span>
+intent  ---------------------------------&gt;  fixed action list
+
+<span class="c"># This system</span>
+intent + current state + topology + device dependencies  --&gt;  required action list</pre>
+
+<p>Measured across the implemented system: <b>48 (intent, starting-state) pairs produce 43
+distinct action sequences.</b> A fixed-script design over the same 8 movement intents would
+produce 8.</p>
+
+<h3>Scope and honesty</h3>
+<table>
+  <tr><th style="width:34%">Component</th><th>Status</th></tr>
+  <tr><td>Speech → text, intent recognition, confirmation</td><td><span class="tag t-ok">IMPLEMENTED</span></td></tr>
+  <tr><td>State model, topology, workflow generation</td><td><span class="tag t-ok">IMPLEMENTED</span></td></tr>
+  <tr><td>MQTT transport, acknowledgement, retry, idempotency</td><td><span class="tag t-ok">IMPLEMENTED</span></td></tr>
+  <tr><td>Emergency lifecycle, persistence, restart recovery</td><td><span class="tag t-ok">IMPLEMENTED</span></td></tr>
+  <tr><td>ESP32 device nodes</td><td><span class="tag t-sim">SIMULATED</span> — three mock node processes; no physical hardware</td></tr>
+  <tr><td>Physical-state sensing / reconciliation</td><td><span class="tag t-no">NOT PRESENT</span> — no sensors of any kind</td></tr>
+  <tr><td>Comparative experimental evaluation</td><td><span class="tag t-no">NOT PRESENT</span> — correctness tests only</td></tr>
+</table>
+
+<div class="warn"><b>Read this before citing the document</b>
+The nodes are software processes that simulate hardware. Every device state in this system is
+what the software <em>believes</em> after a confirmed command, never a reading from a sensor.
+That distinction is load-bearing throughout the design and is why the uncertainty model in
+§6 exists.</div>
+</section>
+
+<!-- ============================ 2 ============================ -->
+<section>
+<div class="sechead"><span class="n">02</span><h2>Layered architecture</h2></div>
+
+<figure>
+<svg viewBox="0 0 720 430" role="img" aria-label="Layered architecture diagram">
+  <defs>
+    <marker id="a" markerWidth="9" markerHeight="9" refX="7" refY="3.2" orient="auto">
+      <path d="M0,0 L7,3.2 L0,6.4 z" fill="#5d6b78"/>
+    </marker>
+  </defs>
+  <g font-family="Segoe UI,Arial" font-size="12">
+
+  <rect x="8" y="8" width="704" height="52" rx="5" fill="#e7f3f1" stroke="#0c7d79"/>
+  <text x="24" y="30" font-weight="700" fill="#075c5a">INTERFACE</text>
+  <text x="24" y="48" fill="#5d6b78" font-size="11">ConsoleAssistant (voice loop) · Flask web UI — two front ends, one world</text>
+
+  <rect x="8" y="76" width="704" height="52" rx="5" fill="#f4f7f7" stroke="#d6dee2"/>
+  <text x="24" y="98" font-weight="700" fill="#16212b">RECOGNITION</text>
+  <text x="24" y="116" fill="#5d6b78" font-size="11">Faster-Whisper → MiniLM sentence embeddings → PREDICTED / UNKNOWN → user confirmation</text>
+
+  <rect x="8" y="144" width="704" height="128" rx="5" fill="#fff" stroke="#0c7d79" stroke-width="2"/>
+  <text x="24" y="166" font-weight="700" fill="#075c5a">ORCHESTRATION — the decision authority</text>
+  <rect x="24" y="178" width="215" height="80" rx="4" fill="#f4f7f7" stroke="#d6dee2"/>
+  <text x="36" y="197" font-weight="700" font-size="11">Orchestrator</text>
+  <text x="36" y="214" fill="#5d6b78" font-size="10">policy · execution · commit</text>
+  <text x="36" y="229" fill="#5d6b78" font-size="10">emergency latch · location guard</text>
+  <text x="36" y="244" fill="#5d6b78" font-size="10">ACK validation</text>
+
+  <rect x="252" y="178" width="215" height="80" rx="4" fill="#f4f7f7" stroke="#d6dee2"/>
+  <text x="264" y="197" font-weight="700" font-size="11">WorkflowEngine</text>
+  <text x="264" y="214" fill="#5d6b78" font-size="10">plans from CURRENT state</text>
+  <text x="264" y="229" fill="#5d6b78" font-size="10">per-intent requirements</text>
+  <text x="264" y="244" fill="#5d6b78" font-size="10">emits ordered Action list</text>
+
+  <rect x="480" y="178" width="215" height="80" rx="4" fill="#f4f7f7" stroke="#d6dee2"/>
+  <text x="492" y="197" font-weight="700" font-size="11">TransitionBuilder</text>
+  <text x="492" y="214" fill="#5d6b78" font-size="10">house topology</text>
+  <text x="492" y="229" fill="#5d6b78" font-size="10">door / light dependencies</text>
+  <text x="492" y="244" fill="#5d6b78" font-size="10">corridor traversal rules</text>
+
+  <rect x="8" y="288" width="346" height="58" rx="5" fill="#f4f7f7" stroke="#d6dee2"/>
+  <text x="24" y="310" font-weight="700">STATE</text>
+  <text x="24" y="328" fill="#5d6b78" font-size="11">ContextManager → EnvironmentState</text>
+
+  <rect x="366" y="288" width="346" height="58" rx="5" fill="#f4f7f7" stroke="#d6dee2"/>
+  <text x="382" y="310" font-weight="700">DURABILITY</text>
+  <text x="382" y="328" fill="#5d6b78" font-size="11">StateRepository — snapshot + event log</text>
+
+  <rect x="8" y="362" width="704" height="58" rx="5" fill="#e7f3f1" stroke="#0c7d79"/>
+  <text x="24" y="384" font-weight="700" fill="#075c5a">TRANSPORT &amp; DEVICES</text>
+  <text x="24" y="402" fill="#5d6b78" font-size="11">MQTTDeviceExecutor → Mosquitto → esp32_a · esp32_b · esp32_c → acknowledgement</text>
+
+  <line x1="360" y1="60" x2="360" y2="74" stroke="#5d6b78" marker-end="url(#a)"/>
+  <line x1="360" y1="128" x2="360" y2="142" stroke="#5d6b78" marker-end="url(#a)"/>
+  <line x1="180" y1="272" x2="180" y2="286" stroke="#5d6b78" marker-end="url(#a)"/>
+  <line x1="540" y1="272" x2="540" y2="286" stroke="#5d6b78" marker-end="url(#a)"/>
+  <line x1="360" y1="346" x2="360" y2="360" stroke="#5d6b78" marker-end="url(#a)"/>
+  </g>
+</svg>
+<figcaption>Each layer has one responsibility. Planning never touches transport; transport never
+touches state; the interface never builds an action.</figcaption>
+</figure>
+
+<h3>Responsibility boundaries</h3>
+<table>
+  <tr><th style="width:26%">Component</th><th>Owns</th><th style="width:30%">Explicitly does not</th></tr>
+  <tr><td class="mono">Orchestrator</td><td>Policy, execution order, ACK validation, all state commits</td><td>Build plans; know MQTT exists</td></tr>
+  <tr><td class="mono">WorkflowEngine</td><td>What a goal requires given the current state</td><td>Execute; mutate state</td></tr>
+  <tr><td class="mono">TransitionBuilder</td><td>Topology and movement dependencies</td><td>Know about intents</td></tr>
+  <tr><td class="mono">ContextManager</td><td>The authoritative logical state</td><td>Know about files or storage</td></tr>
+  <tr><td class="mono">MQTTDeviceExecutor</td><td>Publish, correlate, retry, await ACK</td><td>Own any workflow state</td></tr>
+  <tr><td class="mono">StateRepository</td><td>Atomic snapshots, append-only event log</td><td>Make any decision</td></tr>
+  <tr><td class="mono">Mock ESP32 node</td><td>Simulated pins, command dedup, status replies</td><td>Know about rooms, intents or the world model</td></tr>
+</table>
+</section>
+
+<!-- ============================ 3 ============================ -->
+<section>
+<div class="sechead"><span class="n">03</span><h2>The command pipeline</h2></div>
+
+<figure>
+<svg viewBox="0 0 720 300" role="img" aria-label="End to end pipeline">
+ <defs><marker id="b" markerWidth="9" markerHeight="9" refX="7" refY="3.2" orient="auto">
+   <path d="M0,0 L7,3.2 L0,6.4 z" fill="#0c7d79"/></marker></defs>
+ <g font-family="Segoe UI,Arial" font-size="10.5">
+  <g id="row1">
+   <rect x="6"   y="20" width="108" height="46" rx="4" fill="#e7f3f1" stroke="#0c7d79"/>
+   <text x="60" y="40" text-anchor="middle" font-weight="700">Speech</text>
+   <text x="60" y="56" text-anchor="middle" fill="#5d6b78" font-size="9">microphone</text>
+
+   <rect x="130" y="20" width="108" height="46" rx="4" fill="#f4f7f7" stroke="#d6dee2"/>
+   <text x="184" y="40" text-anchor="middle" font-weight="700">Transcribe</text>
+   <text x="184" y="56" text-anchor="middle" fill="#5d6b78" font-size="9">Whisper</text>
+
+   <rect x="254" y="20" width="108" height="46" rx="4" fill="#f4f7f7" stroke="#d6dee2"/>
+   <text x="308" y="40" text-anchor="middle" font-weight="700">Intent</text>
+   <text x="308" y="56" text-anchor="middle" fill="#5d6b78" font-size="9">embeddings, τ=0.65</text>
+
+   <rect x="378" y="20" width="108" height="46" rx="4" fill="#fdf3df" stroke="#a2701f"/>
+   <text x="432" y="40" text-anchor="middle" font-weight="700">Confirm</text>
+   <text x="432" y="56" text-anchor="middle" fill="#5d6b78" font-size="9">user approves</text>
+
+   <rect x="502" y="20" width="108" height="46" rx="4" fill="#f4f7f7" stroke="#d6dee2"/>
+   <text x="556" y="40" text-anchor="middle" font-weight="700">Guards</text>
+   <text x="556" y="56" text-anchor="middle" fill="#5d6b78" font-size="9">emergency · location</text>
+
+   <rect x="626" y="20" width="88" height="46" rx="4" fill="#e7f3f1" stroke="#0c7d79" stroke-width="2"/>
+   <text x="670" y="40" text-anchor="middle" font-weight="700">PLAN</text>
+   <text x="670" y="56" text-anchor="middle" fill="#5d6b78" font-size="9">from state</text>
+
+   <line x1="114" y1="43" x2="128" y2="43" stroke="#0c7d79" marker-end="url(#b)"/>
+   <line x1="238" y1="43" x2="252" y2="43" stroke="#0c7d79" marker-end="url(#b)"/>
+   <line x1="362" y1="43" x2="376" y2="43" stroke="#0c7d79" marker-end="url(#b)"/>
+   <line x1="486" y1="43" x2="500" y2="43" stroke="#0c7d79" marker-end="url(#b)"/>
+   <line x1="610" y1="43" x2="624" y2="43" stroke="#0c7d79" marker-end="url(#b)"/>
+  </g>
+
+  <path d="M670,66 L670,88 L60,88 L60,110" fill="none" stroke="#0c7d79" marker-end="url(#b)"/>
+
+  <g id="row2">
+   <rect x="6"   y="112" width="108" height="46" rx="4" fill="#f4f7f7" stroke="#d6dee2"/>
+   <text x="60" y="132" text-anchor="middle" font-weight="700">Publish</text>
+   <text x="60" y="148" text-anchor="middle" fill="#5d6b78" font-size="9">command_id</text>
+
+   <rect x="130" y="112" width="108" height="46" rx="4" fill="#f4f7f7" stroke="#d6dee2"/>
+   <text x="184" y="132" text-anchor="middle" font-weight="700">Broker</text>
+   <text x="184" y="148" text-anchor="middle" fill="#5d6b78" font-size="9">Mosquitto</text>
+
+   <rect x="254" y="112" width="108" height="46" rx="4" fill="#f4f7f7" stroke="#d6dee2"/>
+   <text x="308" y="132" text-anchor="middle" font-weight="700">Node acts</text>
+   <text x="308" y="148" text-anchor="middle" fill="#5d6b78" font-size="9">dedup by id</text>
+
+   <rect x="378" y="112" width="108" height="46" rx="4" fill="#f4f7f7" stroke="#d6dee2"/>
+   <text x="432" y="132" text-anchor="middle" font-weight="700">ACK</text>
+   <text x="432" y="148" text-anchor="middle" fill="#5d6b78" font-size="9">status = success</text>
+
+   <rect x="502" y="112" width="108" height="46" rx="4" fill="#e7f3f1" stroke="#0c7d79" stroke-width="2"/>
+   <text x="556" y="132" text-anchor="middle" font-weight="700">COMMIT</text>
+   <text x="556" y="148" text-anchor="middle" fill="#5d6b78" font-size="9">device state</text>
+
+   <rect x="626" y="112" width="88" height="46" rx="4" fill="#f4f7f7" stroke="#d6dee2"/>
+   <text x="670" y="132" text-anchor="middle" font-weight="700">Log</text>
+   <text x="670" y="148" text-anchor="middle" fill="#5d6b78" font-size="9">audit event</text>
+
+   <line x1="114" y1="135" x2="128" y2="135" stroke="#0c7d79" marker-end="url(#b)"/>
+   <line x1="238" y1="135" x2="252" y2="135" stroke="#0c7d79" marker-end="url(#b)"/>
+   <line x1="362" y1="135" x2="376" y2="135" stroke="#0c7d79" marker-end="url(#b)"/>
+   <line x1="486" y1="135" x2="500" y2="135" stroke="#0c7d79" marker-end="url(#b)"/>
+   <line x1="610" y1="135" x2="624" y2="135" stroke="#0c7d79" marker-end="url(#b)"/>
+  </g>
+
+  <path d="M60,158 L60,176 L308,176" fill="none" stroke="#5d6b78" stroke-dasharray="3 3"/>
+  <text x="316" y="180" fill="#5d6b78" font-size="9">repeat for every action in the plan</text>
+
+  <rect x="6" y="200" width="230" height="46" rx="4" fill="#e7f3f1" stroke="#0c7d79" stroke-width="2"/>
+  <text x="121" y="220" text-anchor="middle" font-weight="700">COMMIT room / mode / location</text>
+  <text x="121" y="236" text-anchor="middle" fill="#5d6b78" font-size="9">only after every action succeeded</text>
+
+  <rect x="252" y="200" width="180" height="46" rx="4" fill="#f4f7f7" stroke="#d6dee2"/>
+  <text x="342" y="220" text-anchor="middle" font-weight="700">Snapshot to disk</text>
+  <text x="342" y="236" text-anchor="middle" fill="#5d6b78" font-size="9">atomic write</text>
+
+  <rect x="448" y="200" width="266" height="46" rx="4" fill="#fff" stroke="#0c7d79"/>
+  <text x="581" y="220" text-anchor="middle" font-weight="700">Wait for the next command</text>
+  <text x="581" y="236" text-anchor="middle" fill="#5d6b78" font-size="9">state carries forward</text>
+
+  <line x1="236" y1="223" x2="250" y2="223" stroke="#0c7d79" marker-end="url(#b)"/>
+  <line x1="432" y1="223" x2="446" y2="223" stroke="#0c7d79" marker-end="url(#b)"/>
+  <path d="M581,246 L581,268 L360,268 L360,282" fill="none" stroke="#0c7d79" stroke-dasharray="4 3" marker-end="url(#b)"/>
+  <text x="368" y="290" fill="#075c5a" font-size="9.5" font-weight="700">the loop that makes the system continuous</text>
+ </g>
+</svg>
+<figcaption>The pipeline. The dashed return path is the property that distinguishes this from a
+one-shot assistant: the world that command <em>n</em> commits is the world command
+<em>n+1</em> plans against.</figcaption>
+</figure>
+</section>
+
+<!-- ============================ 4 ============================ -->
+<section>
+<div class="sechead"><span class="n">04</span><h2>The dependency scheduler</h2></div>
+
+<p class="lead">This is the core of the framework. "Scheduler" here means dependency
+resolution, not time: nothing in the system is triggered by a clock, a calendar or a timer.</p>
+
+<h3>4.1 The scheduling function</h3>
+<pre><span class="k">W</span> = f( <span class="v">I</span>, <span class="v">S</span>, <span class="v">T</span>, <span class="v">D</span>, <span class="v">P</span> )
+
+  <span class="v">I</span>  intent                  one of 11 supported goals
+  <span class="v">S</span>  current logical state   room, mode, location certainty, every device
+  <span class="v">T</span>  topology                which rooms connect, through what
+  <span class="v">D</span>  device dependencies     a room must be lit before it is used, a door
+                             opened before it is passed, a room closed on exit
+  <span class="v">P</span>  policy                  emergency latch, location certainty guard
+
+  <span class="k">W</span>  ordered action sequence</pre>
+
+<p>And the state advances only on confirmation:</p>
+
+<pre><span class="k">S</span>(t+1) = F( <span class="v">S</span>(t), <span class="v">W</span>, <span class="v">ACK</span> )   <span class="c"># no ACK, no state change</span></pre>
+
+<div class="note"><b>What this is, technically</b>
+A hand-specified, state-conditioned transition expander. There is no search, no goal
+representation and no declarative precondition language — preconditions are expressed as
+conditionals over the state, and ordering is implicit in the emitted sequence. It is closer
+to a parameterised finite-state machine than to a classical task planner, and the document
+describes it that way deliberately.</div>
+
+<h3>4.2 Worked example — one intent, six starting states</h3>
+
+<p>The intent is identical in every row below: <span class="mono">PREPARE_FOR_SLEEP</span>.
+Only <em>S</em> changes.</p>
+
+<table>
+  <tr><th style="width:19%">Starting state</th><th class="mono" style="width:9%">|W|</th><th>Generated action sequence</th></tr>
+  <tr><td><b>SLEEP_ROOM</b><br><span style="font-size:8pt;color:#5d6b78">already there</span></td><td class="mono">2</td>
+      <td class="mono">LIGHT_ON sleep_light · PREPARE_BED sleep_bed</td></tr>
+  <tr><td><b>DRAWING_ROOM</b><br><span style="font-size:8pt;color:#5d6b78">in the corridor</span></td><td class="mono">6</td>
+      <td class="mono">LIGHT_ON drawing_light · OPEN sleep_door · CLOSE sleep_door ·
+          LIGHT_ON sleep_light · PREPARE_BED · LIGHT_OFF drawing_light</td></tr>
+  <tr><td><b>OUTSIDE</b><br><span style="font-size:8pt;color:#5d6b78">entering the house</span></td><td class="mono">8</td>
+      <td class="mono">OPEN exit_door · CLOSE exit_door · LIGHT_ON drawing_light ·
+          OPEN sleep_door · CLOSE sleep_door · LIGHT_ON sleep_light · PREPARE_BED ·
+          LIGHT_OFF drawing_light</td></tr>
+  <tr><td><b>STUDY_ROOM</b></td><td class="mono">9</td>
+      <td class="mono">LIGHT_OFF study_light · OPEN/CLOSE study_door · LIGHT_ON drawing_light ·
+          OPEN/CLOSE sleep_door · LIGHT_ON sleep_light · PREPARE_BED · LIGHT_OFF drawing_light</td></tr>
+  <tr><td><b>MEAL_ROOM</b></td><td class="mono">9</td>
+      <td class="mono">as above, via meal_door</td></tr>
+  <tr><td><b>RELAX_ROOM</b><br><span style="font-size:8pt;color:#5d6b78">has an extra device</span></td><td class="mono">10</td>
+      <td class="mono">LIGHT_OFF relax_light · <b>TV_OFF relax_tv</b> · OPEN/CLOSE relax_door ·
+          LIGHT_ON drawing_light · OPEN/CLOSE sleep_door · LIGHT_ON sleep_light ·
+          PREPARE_BED · LIGHT_OFF drawing_light</td></tr>
+</table>
+
+<p>Three dependency behaviours are visible in that table alone: the corridor light is raised
+only when the corridor is actually traversed; the source room is shut down before it is left;
+and the relax room contributes an extra action because it owns a television.</p>
+
+<h3>4.3 Topology</h3>
+
+<figure>
+<svg viewBox="0 0 720 220" role="img" aria-label="House topology">
+ <g font-family="Segoe UI,Arial" font-size="11">
+  <rect x="286" y="86" width="148" height="52" rx="5" fill="#e7f3f1" stroke="#0c7d79" stroke-width="2"/>
+  <text x="360" y="107" text-anchor="middle" font-weight="700" fill="#075c5a">DRAWING ROOM</text>
+  <text x="360" y="124" text-anchor="middle" fill="#5d6b78" font-size="9">transition area · corridor light</text>
+
+  <rect x="40" y="94" width="112" height="38" rx="5" fill="#f4f7f7" stroke="#5d6b78" stroke-dasharray="4 3"/>
+  <text x="96" y="118" text-anchor="middle" font-weight="700">OUTSIDE</text>
+
+  <rect x="30" y="14" width="130" height="34" rx="4" fill="#fff" stroke="#d6dee2"/>
+  <text x="95" y="36" text-anchor="middle">STUDY ROOM</text>
+  <rect x="215" y="14" width="130" height="34" rx="4" fill="#fff" stroke="#d6dee2"/>
+  <text x="280" y="36" text-anchor="middle">RELAX ROOM</text>
+  <rect x="400" y="14" width="130" height="34" rx="4" fill="#fff" stroke="#d6dee2"/>
+  <text x="465" y="36" text-anchor="middle">SLEEP ROOM</text>
+  <rect x="580" y="14" width="130" height="34" rx="4" fill="#fff" stroke="#d6dee2"/>
+  <text x="645" y="36" text-anchor="middle">MEAL ROOM</text>
+
+  <line x1="152" y1="112" x2="284" y2="112" stroke="#0c7d79" stroke-width="2"/>
+  <text x="218" y="106" text-anchor="middle" font-size="9" fill="#075c5a">exit_door</text>
+
+  <line x1="330" y1="86" x2="120" y2="50" stroke="#5d6b78"/>
+  <text x="200" y="62" font-size="9" fill="#5d6b78">study_door</text>
+  <line x1="345" y1="86" x2="290" y2="50" stroke="#5d6b78"/>
+  <text x="292" y="72" font-size="9" fill="#5d6b78">relax_door</text>
+  <line x1="378" y1="86" x2="440" y2="50" stroke="#5d6b78"/>
+  <text x="398" y="72" font-size="9" fill="#5d6b78">sleep_door</text>
+  <line x1="400" y1="86" x2="610" y2="50" stroke="#5d6b78"/>
+  <text x="510" y="62" font-size="9" fill="#5d6b78">meal_door</text>
+
+  <text x="360" y="172" text-anchor="middle" font-size="10" fill="#16212b" font-weight="700">
+    Every functional room is reached through the Drawing Room.</text>
+  <text x="360" y="190" text-anchor="middle" font-size="9.5" fill="#5d6b78">
+    There is no direct study→sleep edge: that journey is two traversals and a lit corridor.</text>
+ </g>
+</svg>
+<figcaption>The topology is a star. It is declared once in <span class="mono">TransitionBuilder</span>
+and is the only place in the system that knows how the house is laid out.</figcaption>
+</figure>
+
+<h3>4.4 The corridor invariant</h3>
+<p>The most instructive dependency rule in the system, because it is conditional in both
+directions:</p>
+<ul>
+  <li>The corridor light is raised <b>before</b> the destination door opens — and only if the
+      corridor is genuinely traversed.</li>
+  <li>It is lowered <b>after</b> arrival — and only if it was raised.</li>
+  <li>If the person is already in the destination, no corridor action is emitted at all.</li>
+  <li>If the person is standing <em>in</em> the corridor and it is already lit, no redundant
+      command is sent.</li>
+</ul>
+<p>All 6×4 combinations of source and destination are enforced by 120 automated tests.</p>
+</section>
+
+<!-- ============================ 5 ============================ -->
+<section>
+<div class="sechead"><span class="n">05</span><h2>State model &amp; commit semantics</h2></div>
+
+<h3>5.1 What the state holds</h3>
+<table>
+  <tr><th style="width:30%">Field</th><th>Meaning</th></tr>
+  <tr><td class="mono">current_room</td><td>Last committed location of the person</td></tr>
+  <tr><td class="mono">location_status</td><td>KNOWN · IN_TRANSIT · UNKNOWN — how far <span class="mono">current_room</span> can be trusted</td></tr>
+  <tr><td class="mono">location_destination</td><td>Where an in-progress move is heading</td></tr>
+  <tr><td class="mono">location_reason</td><td>Why certainty was lost, for the operator</td></tr>
+  <tr><td class="mono">current_mode</td><td>NONE · STUDY · RELAX · SLEEP · MEAL · EMERGENCY</td></tr>
+  <tr><td class="mono">return_target</td><td>The room to come back to</td></tr>
+  <tr><td class="mono">emergency_declared_at / _cleared_at</td><td>Durable emergency lifecycle record</td></tr>
+  <tr><td class="mono">drawing_light, exit_door, buzzer</td><td>Shared devices</td></tr>
+  <tr><td class="mono">study / relax / sleep / meal</td><td>Per-room device states (13 fields)</td></tr>
+</table>
+
+<h3>5.2 Two commit tiers</h3>
+<p>The system commits at two different granularities, and the distinction matters for
+correctness under failure.</p>
+
+<div class="grid2">
+  <div class="card"><h4>Per acknowledged action</h4>
+    <p>Device state. A light is recorded ON the moment its node confirms it. Ten actions, ten
+    small commits.</p></div>
+  <div class="card"><h4>Per completed workflow</h4>
+    <p>Room, mode, return target, location. Committed only once <em>every</em> action in the
+    plan has been acknowledged.</p></div>
+</div>
+
+<p style="margin-top:4mm">The consequence is deliberate: a workflow that fails part way leaves
+the devices it actually moved recorded as moved, and does <b>not</b> claim the person arrived.</p>
+
+<h3>5.3 What counts as an acknowledgement</h3>
+<pre><span class="c"># All four must hold before any state moves</span>
+result is a mapping
+result["status"] == "success"
+result["device"] == the device we commanded
+result["action"] == the action we sent</pre>
+<p>A timeout, a device-reported error, a malformed reply, or a reply about a different device
+all leave the logical state untouched.</p>
+</section>
+
+<!-- ============================ 6 ============================ -->
+<section>
+<div class="sechead"><span class="n">06</span><h2>Location certainty</h2></div>
+
+<p class="lead">The system has no sensors. It cannot see where the person is; it can only
+remember where it last successfully sent them. This section is about being honest about that.</p>
+
+<figure>
+<svg viewBox="0 0 720 210" role="img" aria-label="Location state machine">
+ <defs><marker id="c" markerWidth="9" markerHeight="9" refX="7" refY="3.2" orient="auto">
+   <path d="M0,0 L7,3.2 L0,6.4 z" fill="#5d6b78"/></marker></defs>
+ <g font-family="Segoe UI,Arial" font-size="11">
+  <rect x="30" y="76" width="150" height="52" rx="26" fill="#e3f4ea" stroke="#146345" stroke-width="2"/>
+  <text x="105" y="100" text-anchor="middle" font-weight="700" fill="#146345">KNOWN</text>
+  <text x="105" y="116" text-anchor="middle" fill="#5d6b78" font-size="9">the room is a fact</text>
+
+  <rect x="285" y="76" width="150" height="52" rx="26" fill="#fdf3df" stroke="#a2701f" stroke-width="2"/>
+  <text x="360" y="100" text-anchor="middle" font-weight="700" fill="#a2701f">IN_TRANSIT</text>
+  <text x="360" y="116" text-anchor="middle" fill="#5d6b78" font-size="9">a move is running</text>
+
+  <rect x="540" y="76" width="150" height="52" rx="26" fill="#faeae9" stroke="#a5433d" stroke-width="2"/>
+  <text x="615" y="100" text-anchor="middle" font-weight="700" fill="#a5433d">UNKNOWN</text>
+  <text x="615" y="116" text-anchor="middle" fill="#5d6b78" font-size="9">no claim is made</text>
+
+  <path d="M180,94 L283,94" stroke="#5d6b78" marker-end="url(#c)"/>
+  <text x="231" y="88" text-anchor="middle" font-size="9" fill="#5d6b78">move starts</text>
+
+  <path d="M300,128 Q210,175 120,130" fill="none" stroke="#146345" marker-end="url(#c)"/>
+  <text x="212" y="166" text-anchor="middle" font-size="9" fill="#146345">every action acknowledged</text>
+
+  <path d="M435,94 L538,94" stroke="#a5433d" marker-end="url(#c)"/>
+  <text x="486" y="88" text-anchor="middle" font-size="9" fill="#a5433d">interrupted</text>
+  <text x="486" y="112" text-anchor="middle" font-size="8.5" fill="#5d6b78">after a door opened</text>
+
+  <path d="M600,52 Q360,4 120,52" fill="none" stroke="#146345" marker-end="url(#c)"/>
+  <text x="360" y="20" text-anchor="middle" font-size="9.5" fill="#146345" font-weight="700">a person states where they are</text>
+
+  <text x="360" y="196" text-anchor="middle" font-size="9.5" fill="#5d6b78">
+    UNKNOWN is never treated as OUTSIDE. Movement commands are refused, not guessed.</text>
+ </g>
+</svg>
+<figcaption>Uncertainty is modelled as a property of the reading, not as a place. It is
+deliberately not a member of the Room enumeration.</figcaption>
+</figure>
+
+<h3>The interruption rule</h3>
+<p>When a movement workflow fails part way, the system decides what it can still honestly
+claim using a physical argument:</p>
+<div class="grid2">
+  <div class="card"><h4>No door was opened</h4>
+    <p>The person cannot have left. The source room is still true, so the location stays
+    <b>KNOWN</b>. A failed light does not trigger a dialogue.</p></div>
+  <div class="card"><h4>A door was opened</h4>
+    <p>They may be anywhere along the route. The only honest answer is <b>UNKNOWN</b>, and
+    movement commands are refused until a human resolves it.</p></div>
+</div>
+
+<div class="crit"><b>Why this matters more once state is durable</b>
+Without persistence a stale location lives only as long as the process. Once state survives a
+restart, a location the system cannot vouch for becomes a durable false claim — and every
+future plan would be built on it.</div>
+</section>
+
+<!-- ============================ 7 ============================ -->
+<section>
+<div class="sechead"><span class="n">07</span><h2>Reliability &amp; safety envelope</h2></div>
+
+<h3>7.1 Exactly-once physical execution</h3>
+<p>A retry exists because an acknowledgement did not arrive — not because the action did not
+happen. The system is built around that distinction.</p>
+<pre><span class="c"># One logical action = one identity, reused across all attempts</span>
+attempt 1  ->  command_id = 4b45c942…   (no ACK)
+attempt 2  ->  command_id = 4b45c942…   (node recognises it)
+attempt 3  ->  command_id = 4b45c942…
+
+<span class="c"># Node side: 128-entry history of completed command ids</span>
+duplicate id  ->  re-acknowledge, do NOT actuate</pre>
+<p>Verified end-to-end against a live broker: an acknowledgement was dropped, the executor
+retried, and the door opened <b>once</b>.</p>
+
+<h3>7.2 Emergency lifecycle</h3>
+<table>
+  <tr><th style="width:26%">Stage</th><th>Behaviour</th></tr>
+  <tr><td><b>Entry</b></td><td>Mode latched <em>before</em> any hardware is touched — a partly failed alarm is still an emergency. Buzzer raised, exit and all internal doors opened.</td></tr>
+  <tr><td><b>Held open</b></td><td>Nothing closes the escape route. Entry emits no CLOSE_DOOR at all.</td></tr>
+  <tr><td><b>While latched</b></td><td>All ordinary intents refused. Only EMERGENCY (idempotent retry) and EMERGENCY_CLEAR are accepted.</td></tr>
+  <tr><td><b>Best effort</b></td><td>A failed door does not abandon the remaining doors; failures are reported, not swallowed.</td></tr>
+  <tr><td><b>Clear</b></td><td>Confirmed command silences the buzzer and closes up. If any required action fails, the latch <em>holds</em>.</td></tr>
+  <tr><td><b>Across restart</b></td><td>Latch restored from durable evidence. <b>No actuator is re-fired</b> — a stored file is not proof the buzzer is sounding.</td></tr>
+</table>
+
+<div class="warn"><b>A design decision worth stating explicitly</b>
+Entry deliberately does <em>not</em> close the doors it opens. In an earlier revision it did,
+and the escape route was measured open for 7&nbsp;milliseconds. The software cannot know whether
+anyone got out, so the route now stays open until a human says otherwise.</div>
+
+<h3>7.3 Medication</h3>
+<p>Twelve of the thirteen action types are set-to-a-state operations and converge on repetition.
+<span class="mono">ACTIVATE_MEDICATION</span> is an impulse — it dispenses a dose. It is recorded
+in the audit log and <b>never replayed</b>; no replay mechanism exists anywhere in the system.</p>
+</section>
+
+<!-- ============================ 8 ============================ -->
+<section>
+<div class="sechead"><span class="n">08</span><h2>Persistence &amp; restart recovery</h2></div>
+
+<h3>8.1 What is stored</h3>
+<div class="grid2">
+  <div class="card"><h4>Snapshot — <span class="mono">state.json</span></h4>
+    <p>The whole world plus metadata. Written atomically: temp file → flush → fsync →
+    <span class="mono">os.replace</span>. Previous copy kept as <span class="mono">.bak</span>.</p></div>
+  <div class="card"><h4>Event log — <span class="mono">events.jsonl</span></h4>
+    <p>One line per acknowledged action: timestamp, intent, device, action, command_id, node,
+    status, resulting state. An audit trail, never a replay queue.</p></div>
+</div>
+
+<pre>{ <span class="k">"schema_version"</span>: 1,
+  <span class="k">"application_version"</span>: <span class="v">"0.10.0"</span>,
+  <span class="k">"saved_at"</span>: <span class="v">"2026-08-27T04:49:49Z"</span>,
+  <span class="k">"clean_shutdown"</span>: false,
+  <span class="k">"state"</span>: { … the full environment … } }</pre>
+
+<h3>8.2 How far a restart trusts what it finds</h3>
+<table>
+  <tr><th style="width:22%">Stored status</th><th style="width:18%">Previous exit</th><th style="width:20%">Restored as</th><th>Reasoning</th></tr>
+  <tr><td class="mono">KNOWN</td><td>clean</td><td><b>KNOWN</b></td><td>Nothing happened in between that could have been missed</td></tr>
+  <tr><td class="mono">KNOWN</td><td>crash, nothing committed</td><td><b>KNOWN</b></td><td>The stored world is identical to a fresh one — no claim to distrust</td></tr>
+  <tr><td class="mono">KNOWN</td><td>crash, after real work</td><td><b>UNKNOWN</b></td><td>The session ended mid-life; the location may be stale</td></tr>
+  <tr><td class="mono">IN_TRANSIT</td><td>any</td><td><b>UNKNOWN</b></td><td>The move never completed; both endpoints retained for diagnosis</td></tr>
+  <tr><td class="mono">UNKNOWN</td><td>any</td><td><b>UNKNOWN</b></td><td>Uncertainty is never laundered into a room</td></tr>
+</table>
+
+<p>The clean-shutdown marker is written <em>dirty at startup</em> and set true only by an
+orderly shutdown, so an abandoned process cannot masquerade as a clean exit.</p>
+
+<div class="note"><b>The defect this closed</b>
+Before persistence, restarting the application silently cleared an active emergency: a fresh
+state object reported mode NONE and accepted ordinary commands again. A restart was, in effect,
+an unauthenticated emergency clear.</div>
+</section>
+
+<!-- ============================ 9 ============================ -->
+<section>
+<div class="sechead"><span class="n">09</span><h2>Evidence &amp; limitations</h2></div>
+
+<h3>9.1 Test coverage</h3>
+<table>
+  <tr><th style="width:46%">Suite</th><th style="width:12%">Tests</th><th>What it pins</th></tr>
+  <tr><td class="mono">test_transition_invariants</td><td>120</td><td>All 6×4 source/destination pairs, corridor invariant</td></tr>
+  <tr><td class="mono">test_emergency_lifecycle</td><td>50</td><td>Latch, blocking, clear, failure semantics</td></tr>
+  <tr><td class="mono">test_emergency_recognition</td><td>43</td><td>Safety-critical recall and false-alarm prevention</td></tr>
+  <tr><td class="mono">test_state_persistence</td><td>40</td><td>Round-trip, atomicity, corruption rejection</td></tr>
+  <tr><td class="mono">test_location_semantics</td><td>39</td><td>KNOWN / IN_TRANSIT / UNKNOWN behaviour</td></tr>
+  <tr><td class="mono">test_startup_recovery</td><td>36</td><td>Crash detection, emergency survival, no replay</td></tr>
+  <tr><td class="mono">test_dataset_hygiene</td><td>26</td><td>Corpus integrity, leakage, threshold consistency</td></tr>
+  <tr><td class="mono">others (11 suites)</td><td>141</td><td>MQTT end-to-end, idempotency, parity, web flow, runtime</td></tr>
+  <tr><td><b>Total</b></td><td><b>495</b></td><td>493 pass, 2 skipped, 0 failures</td></tr>
+</table>
+
+<h3>9.2 Recognition performance</h3>
+<p>Measured on a 110-sentence holdout with verified zero overlap against the training corpus:</p>
+<table>
+  <tr><th>Metric</th><th style="width:16%">Before</th><th style="width:16%">After</th></tr>
+  <tr><td>EMERGENCY recall</td><td>15%</td><td><b>90%</b></td></tr>
+  <tr><td>EMERGENCY false positives</td><td>1</td><td><b>0</b></td></tr>
+  <tr><td>EMERGENCY_CLEAR recall</td><td>80%</td><td><b>100%</b></td></tr>
+  <tr><td>Ordinary-intent accuracy</td><td>47%</td><td><b>68%</b></td></tr>
+</table>
+<p>Every remaining holdout failure resolves to UNKNOWN rather than to a wrong workflow — the
+system asks the user to repeat, it does not act on a misreading.</p>
+
+<h3>9.3 Limitations — stated plainly</h3>
+<div class="grid2">
+  <div class="card"><h4>No physical hardware</h4>
+    <p>All three nodes are software. Nothing in this document has been demonstrated on a real
+    ESP32 or a real door.</p></div>
+  <div class="card"><h4>No comparative evaluation</h4>
+    <p>495 tests establish correctness against a specification. They do not establish that the
+    specification is better than an alternative design.</p></div>
+  <div class="card"><h4>No sensing</h4>
+    <p>All 16 devices are actuators. Logical state is what the software believes after a
+    confirmed command, never a measurement.</p></div>
+  <div class="card"><h4>Single writer</h4>
+    <p>Two application instances sharing one state directory would interleave writes. This is
+    documented, not solved.</p></div>
+</div>
+
+<h3>9.4 What the framework does not claim</h3>
+<p>MQTT, ESP32, publish/subscribe, speech-to-text, sentence embeddings, retries, command
+identifiers, write-ahead logging and atomic file replacement are all standard, established
+technology. The framework's contribution — if any — lies in how the state, uncertainty and
+safety semantics are composed around them, and that composition has not yet been evaluated
+against a baseline.</p>
+</section>
+
+</body>
+</html>

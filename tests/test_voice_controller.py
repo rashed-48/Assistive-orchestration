@@ -9,12 +9,8 @@ controller = VoiceController(
     intent_file="data/intents.csv",
     whisper_model="base",
 
-    # Current development thresholds
-    similarity_threshold=0.65,
-    margin_threshold=0.20,
-
-    # Maximum number of clarification attempts
-    max_clarification_attempts=2
+    # Current development threshold
+    similarity_threshold=0.65
 )
 
 
@@ -61,18 +57,8 @@ else:
         )
     )
 
-    print(
-        "\nMargin:"
-    )
 
     print(
-        round(
-            result["margin"],
-            4
-        )
-    )
-
-    print(
-        "\nThe accepted intent is ready "
+        "\nThe confirmed intent is ready "
         "for the orchestration layer."
     )

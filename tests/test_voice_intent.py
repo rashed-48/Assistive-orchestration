@@ -9,8 +9,7 @@ transcriber = SpeechTranscriber(
 
 recognizer = IntentRecognizer(
     "data/intents.csv",
-    similarity_threshold=0.65,
-    margin_threshold=0.20
+    similarity_threshold=0.65
 )
 
 
@@ -48,14 +47,6 @@ print(
     )
 )
 
-
-print("\nMARGIN:")
-print(
-    round(
-        result["margin"],
-        4
-    )
-)
 
 
 print("\nTOP RESULTS:")

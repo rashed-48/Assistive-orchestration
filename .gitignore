@@ -22,6 +22,9 @@ env/
 !test_audio.wav
 !command.wav
 
+# Durable runtime state: local to each machine, never committed
+var/
+
 # OS and editor files
 .DS_Store
 Thumbs.db
