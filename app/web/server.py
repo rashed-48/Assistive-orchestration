@@ -76,6 +76,9 @@ def create_app(controller=None, runtime=None):
                     DEFAULT_BROKER_PORT,
                 )
             ),
+            # Nodes discover the broker rather than carrying its
+            # address, so a demo on a phone hotspot needs no reflash.
+            announce_broker=True,
         )
         runtime.connect()
 

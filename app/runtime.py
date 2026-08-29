@@ -27,6 +27,7 @@ from app.orchestration.context_manager import (
     StateRestoreError,
 )
 from app.orchestration.state import LocationStatus, Mode
+from app.discovery import BrokerBeacon
 from app.persistence import SnapshotError, StateRepository
 from app.orchestration.orchestrator import EmergencyActive, Orchestrator
 
@@ -146,9 +147,17 @@ class ApplicationRuntime:
         repository=None,
         state_directory=None,
         persist=True,
+        announce_broker=False,
     ):
 
         self.context = context or ContextManager()
+
+        # Nodes carry no broker address of their own; the host says
+        # where it is. Off by default so tests stay off the network.
+        self.beacon = (
+            BrokerBeacon(broker_port=broker_port)
+            if announce_broker else None
+        )
 
         # Persistence is opt-out so tests stay filesystem-free by default.
         if repository is not None:
@@ -420,6 +429,11 @@ class ApplicationRuntime:
         transport rather than raised here.
         """
 
+        if self.beacon is not None:
+            # Announce before connecting: a node that boots first
+            # should not have to wait out its discovery window.
+            self.beacon.start()
+
         if self.mqtt_client is None or self.connected:
             return self.connected
 
@@ -445,6 +459,9 @@ class ApplicationRuntime:
         """End the session: record a clean exit, then leave the broker."""
 
         self._save_snapshot(clean_shutdown=True)
+
+        if self.beacon is not None:
+            self.beacon.stop()
 
         if self.mqtt_client is None or not self.connected:
             return

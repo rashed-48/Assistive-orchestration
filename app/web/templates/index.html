@@ -109,11 +109,78 @@
       <div class="panel-header">
         <div>
           <p class="eyebrow">Authoritative state</p>
-          <h2>Environment</h2>
+          <h2>The house</h2>
         </div>
-        <span id="mqtt-pill" class="decision-pill idle">MQTT</span>
+        <div class="panel-pills">
+          <span id="replay-pill" class="decision-pill idle" hidden>Replaying</span>
+          <span id="mqtt-pill" class="decision-pill idle">MQTT</span>
+        </div>
       </div>
-      <div id="state-grid" class="state-grid"></div>
+
+      <!-- Floor plan. Every room is reached through the Drawing Room, so the
+           layout mirrors the topology the TransitionBuilder actually uses. -->
+      <div id="house" class="house">
+        <div class="room outside" data-room="OUTSIDE">
+          <span class="room-name">Outside</span>
+          <span class="person" data-person="OUTSIDE"><i data-lucide="user"></i></span>
+        </div>
+
+        <div class="door door-exit" data-device="exit_door" title="exit_door">
+          <i data-lucide="door-closed"></i><span>exit</span>
+        </div>
+
+        <div class="room" data-room="STUDY_ROOM" style="grid-area:study">
+          <span class="room-name">Study</span>
+          <div class="devices" data-devices="study"></div>
+          <span class="person" data-person="STUDY_ROOM"><i data-lucide="user"></i></span>
+        </div>
+
+        <div class="room" data-room="RELAX_ROOM" style="grid-area:relax">
+          <span class="room-name">Relax</span>
+          <div class="devices" data-devices="relax"></div>
+          <span class="person" data-person="RELAX_ROOM"><i data-lucide="user"></i></span>
+        </div>
+
+        <div class="room drawing" data-room="DRAWING_ROOM" style="grid-area:drawing">
+          <span class="room-name">Drawing room <em>transition area</em></span>
+          <div class="devices" data-devices="drawing"></div>
+          <span class="person" data-person="DRAWING_ROOM"><i data-lucide="user"></i></span>
+        </div>
+
+        <div class="room" data-room="SLEEP_ROOM" style="grid-area:sleep">
+          <span class="room-name">Sleep</span>
+          <div class="devices" data-devices="sleep"></div>
+          <span class="person" data-person="SLEEP_ROOM"><i data-lucide="user"></i></span>
+        </div>
+
+        <div class="room" data-room="MEAL_ROOM" style="grid-area:meal">
+          <span class="room-name">Meal</span>
+          <div class="devices" data-devices="meal"></div>
+          <span class="person" data-person="MEAL_ROOM"><i data-lucide="user"></i></span>
+        </div>
+
+        <div class="door" data-device="study_door" style="grid-area:dstudy" title="study_door">
+          <i data-lucide="door-closed"></i>
+        </div>
+        <div class="door" data-device="relax_door" style="grid-area:drelax" title="relax_door">
+          <i data-lucide="door-closed"></i>
+        </div>
+        <div class="door" data-device="sleep_door" style="grid-area:dsleep" title="sleep_door">
+          <i data-lucide="door-closed"></i>
+        </div>
+        <div class="door" data-device="meal_door" style="grid-area:dmeal" title="meal_door">
+          <i data-lucide="door-closed"></i>
+        </div>
+      </div>
+
+      <div class="house-foot">
+        <div id="house-caption" class="house-caption">Live environment state.</div>
+        <div class="legend">
+          <span><b class="sw on"></b>active</span>
+          <span><b class="sw"></b>off / closed</span>
+          <span><b class="sw fire"></b>acting now</span>
+        </div>
+      </div>
     </section>
 
     <footer>Local voice processing · Faster Whisper + semantic intent recognition</footer>

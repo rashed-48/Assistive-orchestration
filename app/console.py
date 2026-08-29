@@ -78,6 +78,7 @@ class ConsoleAssistant:
             broker_host=broker_host,
             broker_port=broker_port,
             client_id=DEFAULT_CLIENT_ID,
+            announce_broker=True,
         )
 
         self._owns_controller = controller is None
