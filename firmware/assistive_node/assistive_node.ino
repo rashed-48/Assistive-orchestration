@@ -73,7 +73,7 @@
 const char *WIFI_SSID = "ci";                 // hotspot
 const char *WIFI_PASS = "qwerty12";
 
-const char *MQTT_HOST = "192.168.0.103";   // the PC running mosquitto
+const char *MQTT_HOST = "10.166.126.173";  // fallback only; normally discovered
 const uint16_t MQTT_PORT = 1883;
 
 // The address above is only a fallback. On boot the node listens for
@@ -90,13 +90,31 @@ const uint32_t DISCOVERY_WAIT_MS = 8000;
 // hardware that is not there. Set to 1 once the servos are connected.
 #define WIRE_SERVOS 1
 
+// EXPERIMENT ONLY. 1 is correct behaviour and the default.
+//
+// Set to 0 and the node re-executes a command it has already
+// completed, instead of re-sending its stored acknowledgement.
+// That is the control condition for the idempotency measurement:
+// it makes the failure happen so it can be quantified, rather
+// than only asserting that it does not.
+//
+// Never leave a node running with this at 0. A retried
+// ACTIVATE_MEDICATION becomes a second dose.
+#define DEDUP_ENABLED 1
+
 /* ============================================================
    2. DEVICE TABLE
    Device names are fixed by app/devices/device_registry.py.
    Change the PINS to match your wiring, not the names.
+
+   The last column says whether anything is actually connected to that
+   pin. Set it false for a device you have not wired yet: the node then
+   answers "error" for it rather than reporting a success for hardware
+   that never moved, and the application declines to commit its state.
    ============================================================ */
 
-enum Kind { RELAY_LIGHT, RELAY_TV, SERVO_DOOR, SERVO_TABLE, SERVO_BED, SERVO_MED, BUZZER };
+enum Kind { RELAY_LIGHT, RELAY_TV, SERVO_TV, SERVO_DOOR, SERVO_TABLE,
+            SERVO_BED, SERVO_MED, BUZZER };
 
 struct Device {
   const char *name;
@@ -104,28 +122,29 @@ struct Device {
   uint8_t pin;
   int restAngle;     // servos: closed / normal
   int activeAngle;   // servos: open / ready
+  bool wired;        // false = nothing on this pin; answer "error"
 };
 
 Device DEVICES[] = {
 #if NODE_SELECT == 1
-  { "drawing_light",     RELAY_LIGHT,  23,   0,   0 },
-  { "relax_light",       RELAY_LIGHT,  22,   0,   0 },
-  { "relax_tv",          RELAY_TV,     21,   0,   0 },
-  { "buzzer",            BUZZER,       19,   0,   0 },
-  { "exit_door",         SERVO_DOOR,   18,   0,  90 },
-  { "relax_door",        SERVO_DOOR,    5,   0,  90 },
+  { "drawing_light",     RELAY_LIGHT,  23,   0,   0, true },
+  { "relax_light",       RELAY_LIGHT,  22,   0,   0, true },
+  { "relax_tv",          SERVO_TV,     21,   0,  90, true },
+  { "buzzer",            BUZZER,       19,   0,   0, true },
+  { "exit_door",         SERVO_DOOR,   18,   0,  90, true },
+  { "relax_door",        SERVO_DOOR,    5,   0,  90, true },
 #elif NODE_SELECT == 3
-  { "study_light",       RELAY_LIGHT,  23,   0,   0 },
-  { "meal_light",        RELAY_LIGHT,  22,   0,   0 },
-  { "study_door",        SERVO_DOOR,   18,   0,  90 },
-  { "meal_door",         SERVO_DOOR,    5,   0,  90 },
-  { "study_table",       SERVO_TABLE,  17,   0,  60 },
-  { "meal_table",        SERVO_TABLE,  16,   0,  60 },
+  { "study_light",       RELAY_LIGHT,  23,   0,   0, true },
+  { "meal_light",        RELAY_LIGHT,  22,   0,   0, true },
+  { "study_door",        SERVO_DOOR,   18,   0,  90, true },
+  { "meal_door",         SERVO_DOOR,    5,   0,  90, true },
+  { "study_table",       SERVO_TABLE,  17,   0,  60, true },
+  { "meal_table",        SERVO_TABLE,  16,   0,  60, true },
 #else   /* 2 - esp32_b, the default */
-  { "sleep_light",       RELAY_LIGHT,  23,   0,   0 },
-  { "sleep_door",        SERVO_DOOR,   18,   0,  90 },
-  { "sleep_bed",         SERVO_BED,    17,   0,  45 },
-  { "medication_servo",  SERVO_MED,    16,   0,  80 },
+  { "sleep_light",       RELAY_LIGHT,  23,   0,   0, true },
+  { "sleep_door",        SERVO_DOOR,   18,   0,  90, true },
+  { "sleep_bed",         SERVO_BED,    17,   0,  45, true },
+  { "medication_servo",  SERVO_MED,    16,   0,  80, true },
 #endif
 };
 
@@ -218,6 +237,12 @@ bool moveServo(int i, int angle) {
 bool actuate(int i, const char *action) {
   const Device &d = DEVICES[i];
 
+  // Nothing on this pin, so nothing can have moved. Reporting success
+  // here would have the application commit a state for absent
+  // hardware - the precise failure the acknowledgement gate exists to
+  // stop.
+  if (!d.wired) return false;
+
   switch (d.kind) {
 
     case RELAY_LIGHT:
@@ -228,6 +253,13 @@ bool actuate(int i, const char *action) {
     case RELAY_TV:
       if (!strcmp(action, "TV_ON"))  { writeRelay(d, true);  return true; }
       if (!strcmp(action, "TV_OFF")) { writeRelay(d, false); return true; }
+      return false;
+
+    // A television driven by a servo pressing its button, rather than
+    // by a relay in its supply. Same two actions, different mechanism.
+    case SERVO_TV:
+      if (!strcmp(action, "TV_ON"))  { return moveServo(i, d.activeAngle); }
+      if (!strcmp(action, "TV_OFF")) { return moveServo(i, d.restAngle); }
       return false;
 
     case BUZZER:
@@ -268,6 +300,22 @@ bool actuate(int i, const char *action) {
    5. MQTT
    ============================================================ */
 
+/* Sent the moment a command arrives, before the duplicate check and
+   before any actuation. Separates how long the command took to get
+   here from how long the hardware took to act on it. */
+void publishAck(const char *id, const char *device, const char *action) {
+  JSON_DOC(doc, 256);
+  doc["command_id"] = id;
+  doc["node"]       = NODE_ID;
+  doc["device"]     = device;
+  doc["action"]     = action;
+  doc["phase"]      = "ack";
+
+  char buffer[256];
+  size_t n = serializeJson(doc, buffer);
+  mqtt.publish(statusTopic, (uint8_t *)buffer, n, false);
+}
+
 void publishStatus(const char *id, const char *device, const char *action,
                    const char *status, bool duplicate) {
   JSON_DOC(doc, 256);
@@ -276,6 +324,7 @@ void publishStatus(const char *id, const char *device, const char *action,
   doc["device"]     = device;
   doc["action"]     = action;
   doc["status"]     = status;
+  doc["phase"]      = "complete";
   if (duplicate) doc["duplicate"] = true;
 
   char buffer[256];
@@ -298,13 +347,21 @@ void onMessage(char *topic, byte *payload, unsigned int length) {
 
   Serial.printf("<- %s %s  id=%s\n", action, device, id);
 
+  // Before the duplicate check and before actuation, so the two costs
+  // stay separable.
+  publishAck(id, device, action);
+
   // RULE 2: a repeated id means a lost acknowledgement, not a new
   // command. Answer again; do not touch the hardware.
+#if DEDUP_ENABLED
   int seen = findCompleted(id);
   if (seen >= 0) {
     publishStatus(id, history[seen].device, history[seen].action, history[seen].status, true);
     return;
   }
+#else
+  // Control condition: the replay falls through and actuates.
+#endif
 
   int i = deviceIndex(device);
   bool ok = (i >= 0) && actuate(i, action);   // RULE 3: actuate, then report
@@ -394,6 +451,10 @@ void setup() {
   Serial.begin(115200);
   delay(300);
   Serial.printf("\n=== Assistive node %s ===\n", NODE_ID);
+#if !DEDUP_ENABLED
+  Serial.println("  *** DEDUP DISABLED - EXPERIMENT BUILD ***");
+  Serial.println("  A retried command will be executed again.");
+#endif
 
   snprintf(commandTopic, sizeof(commandTopic), "assistive/command/%s", NODE_ID);
   snprintf(statusTopic,  sizeof(statusTopic),  "assistive/status/%s",  NODE_ID);
@@ -441,6 +502,7 @@ void setup() {
       Serial.printf("  %-18s pin %2d  (servo disabled)\n", d.name, d.pin);
 #endif
     }
+    if (!d.wired) Serial.printf("  %-18s NOT WIRED - answers error\n", d.name);
     Serial.flush();
   }
 

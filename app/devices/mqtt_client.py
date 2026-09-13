@@ -169,8 +169,17 @@ class MQTTClient:
     def wait_for_status(
         self,
         command_id,
-        timeout=5
+        timeout=5,
+        phase="complete"
     ):
+        """Wait for a node's result for this command.
+
+        A node answers twice: "ack" the moment the command arrives, and
+        "complete" once the hardware has acted. Only the second one
+        carries a status and only it may commit state, so the ack is
+        skipped here. Firmware predating the split sends no phase at
+        all; those messages are treated as complete.
+        """
 
         deadline = time.time() + timeout
 
@@ -183,6 +192,7 @@ class MQTTClient:
                     if (
                         status.get("command_id")
                         == command_id
+                        and status.get("phase", "complete") == phase
                     ):
                         return status
 

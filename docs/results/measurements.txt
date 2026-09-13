@@ -1,0 +1,48 @@
+
+==================================================================
+  Execution measurements - esp32_b via 10.129.134.173
+  2026-08-29 13:59:41
+  real hardware: esp32_b
+  simulated:     esp32_a, esp32_c
+==================================================================
+
+  LATENCY - command published to acknowledgement received
+  --------------------------------------------------------------
+  device                n      min   median      p95      max
+  --------------------------------------------------------------
+  sleep_light          15       21       28      102      102
+  sleep_door           15      744      774      810      810
+  sleep_bed            15      723      773      876      876
+  medication_servo      5     1920     2002     2008     2008
+  --------------------------------------------------------------
+  milliseconds. Includes physical actuation, not network only.
+
+  IDEMPOTENCY - a completed command_id replayed
+  --------------------------------------------------------------
+  sleep_light         5 replays -> 5 answered, 5 from stored state   [ok]
+  sleep_door          5 replays -> 5 answered, 5 from stored state   [ok]
+  sleep_bed           5 replays -> 5 answered, 5 from stored state   [ok]
+  medication_servo    5 replays -> 5 answered, 5 from stored state   [ok]
+  --------------------------------------------------------------
+  Every replay must be answered (a silent one reads as a
+  timeout and the action is lost) and answered from stored
+  state (re-execution on a dosing device is a second dose).
+
+  WORKFLOW - intent to committed state
+  --------------------------------------------------------------
+  intent                     n  actions   median      p95
+  --------------------------------------------------------------
+  PREPARE_FOR_SLEEP          8        2      769     1041
+  WAKE_UP                    8        1      730      931
+  MEDICATION                 8        1     1957     2054
+  RELAX_MODE                 8        2        2        3   simulated only
+  STUDY_MODE                 8        2        2        3   simulated only
+  PREPARE_FOR_MEAL           8        2        2        3   simulated only
+  SHUTDOWN_ENVIRONMENT       8       11      828     1031
+  EMERGENCY                  8        6      823      827
+  --------------------------------------------------------------
+  milliseconds, whole intent: planning, execution across
+  nodes, and the state commit that follows.
+
+  raw samples -> docs/results\execution_measurements.csv
+

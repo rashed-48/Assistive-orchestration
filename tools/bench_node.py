@@ -57,7 +57,8 @@ class Bench:
         except ValueError:
             pass
 
-    def send(self, device, action, command_id=None, wait=6.0, settle=0.0):
+    def send(self, device, action, command_id=None, wait=6.0, settle=0.0,
+             phase="complete"):
         """Publish one command and wait for its acknowledgement.
 
         Only replies that arrive after this call are considered. A
@@ -86,7 +87,11 @@ class Bench:
         deadline = time.time() + wait
         while time.time() < deadline:
             for reply in self.replies[since:]:
-                if reply.get("command_id") == command_id:
+                # A node answers twice: "ack" on arrival and "complete"
+                # once the hardware has acted. Only the second carries a
+                # status. Older firmware sends no phase at all.
+                if (reply.get("command_id") == command_id
+                        and reply.get("phase", "complete") == phase):
                     # Give any second responder time to be heard before
                     # reporting; see the solo check in the suite.
                     if settle:
@@ -100,7 +105,8 @@ class Bench:
         """Every reply carrying this command_id, oldest first."""
 
         return [r for r in self.replies[since:]
-                if r.get("command_id") == command_id]
+                if r.get("command_id") == command_id
+                and r.get("phase", "complete") == "complete"]
 
     def close(self):
         self.client.loop_stop()
