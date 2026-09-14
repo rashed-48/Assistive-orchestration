@@ -285,6 +285,67 @@ def monitor(host, port, node, device, every):
     return 0
 
 
+# Every servo on each node, with its active/rest action pair. Used by
+# --align to walk a board's servos one at a time so the arm direction
+# can be checked by eye.
+SERVOS = {
+    "esp32_a": [("exit_door", "OPEN_DOOR", "CLOSE_DOOR"),
+                ("relax_door", "OPEN_DOOR", "CLOSE_DOOR"),
+                ("relax_tv", "TV_ON", "TV_OFF")],
+    "esp32_b": [("sleep_door", "OPEN_DOOR", "CLOSE_DOOR"),
+                ("sleep_bed", "PREPARE_BED", "RESET_BED")],
+    "esp32_c": [("study_door", "OPEN_DOOR", "CLOSE_DOOR"),
+                ("meal_door", "OPEN_DOOR", "CLOSE_DOOR"),
+                ("study_table", "PREPARE_TABLE", "RESET_TABLE"),
+                ("meal_table", "PREPARE_TABLE", "RESET_TABLE")],
+}
+
+
+def align(bench, hold=3.0):
+    """Walk every servo on the node: rest, active, rest. Watch it.
+
+    medication_servo is deliberately left out - its action is a dose
+    cycle, not a position, and every test is a real dispense. Check it
+    once by hand with --device medication_servo --action
+    ACTIVATE_MEDICATION.
+    """
+
+    servos = SERVOS.get(bench.node)
+    if not servos:
+        print(f"no servo table for {bench.node}")
+        return 1
+
+    print()
+    print(f"Aligning {len(servos)} servo(s) on {bench.node}. For each one:")
+    print("  1. where the arm sits NOW is its rest position (closed / normal)")
+    print("  2. it will move to active (open / ready) and hold")
+    print("  3. it will return to rest")
+    print("If a servo swings the wrong way: pull the arm off, turn it")
+    print("round, push it back on. No reflash needed.")
+    print()
+
+    for device, on, off in servos:
+        print(f"  {device}")
+        for remaining in range(3, 0, -1):
+            print(chr(13) + f"      watching in {remaining}... ", end="", flush=True)
+            time.sleep(1.0)
+        print(chr(13) + " " * 40 + chr(13), end="")
+
+        reply = bench.send(device, on, wait=8.0)
+        status = (reply or {}).get("status", "no reply")
+        print(f"      {on:<16} -> {status:<8}  arm should now be at ACTIVE")
+        time.sleep(hold)
+
+        reply = bench.send(device, off, wait=8.0)
+        status = (reply or {}).get("status", "no reply")
+        print(f"      {off:<16} -> {status:<8}  arm should be back at REST")
+        time.sleep(hold)
+        print()
+
+    print("Done. Note which ones need the arm turned round.")
+    return 0
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--host", default="localhost")
@@ -300,6 +361,9 @@ def main():
                         help="also require that a foreign action is refused")
     parser.add_argument("--watch", action="store_true",
                         help="print all broker traffic instead of testing")
+    parser.add_argument("--align", action="store_true",
+                        help="walk every servo on the node so arm direction "
+                             "can be checked by eye")
     parser.add_argument("--monitor", action="store_true",
                         help="probe the node on a timer, reporting dropouts")
     parser.add_argument("--every", type=float, default=10.0,
@@ -328,6 +392,9 @@ def main():
         return 2
 
     try:
+        if args.align:
+            return align(bench)
+
         if args.suite:
             ok = run_suite(bench, args.device, args.action, args.off_action,
                            strict=args.strict)

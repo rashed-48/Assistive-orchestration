@@ -79,6 +79,13 @@ class Orchestrator:
         # the observer does with it; persistence lives in the runtime.
         self.action_observer = action_observer
 
+        # Called once with the full ordered plan, before the first
+        # action is dispatched. Lets an interface show what is about to
+        # happen and then tick actions off as they complete. Same
+        # contract as action_observer: purely informational, never
+        # allowed to affect the workflow.
+        self.plan_observer = None
+
         self.workflow_engine = WorkflowEngine(
             context
         )
@@ -246,6 +253,8 @@ class Orchestrator:
         print(
             f"Generated {len(actions)} actions."
         )
+
+        self._observe_plan(intent, actions)
 
         print("\nActions:")
 
@@ -416,6 +425,18 @@ class Orchestrator:
         # WAKE_UP, EMERGENCY and EMERGENCY_CLEAR leave the person where
         # they are.
         return None
+
+    def _observe_plan(self, intent, actions):
+        """Announce the plan. A failing observer must not stop the
+        workflow it is describing."""
+
+        if self.plan_observer is None:
+            return
+
+        try:
+            self.plan_observer(intent, list(actions))
+        except Exception as error:
+            print(f"[STATE] Could not announce plan: {error}")
 
     def _observe(self, intent, action, result):
         """Tell the observer an action was acknowledged and committed.

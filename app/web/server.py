@@ -1,8 +1,12 @@
+import json
 import os
 from pathlib import Path
 import threading
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, Response, jsonify, render_template, request
+
+from app.web.events import EventBus
+from app.web.wire import WireObserver
 
 from app.intent import DEFAULT_SIMILARITY_THRESHOLD
 from app.orchestration.orchestrator import LocationUnknown
@@ -84,6 +88,63 @@ def create_app(controller=None, runtime=None):
 
     app.runtime = runtime
 
+    # ----------------------------------------------------------
+    # LIVE VIEW
+    #
+    # Everything the interface animates comes from one ordered event
+    # stream. Speech and recognition are emitted here; the plan and
+    # each commit come from the orchestrator's observer seams; and
+    # every command, acknowledgement and completion comes from a
+    # separate subscriber watching the bus itself, so what the browser
+    # shows is what actually crossed the wire.
+    # ----------------------------------------------------------
+
+    bus = EventBus()
+    app.events = bus
+
+    wire = None
+    mqtt_client = getattr(runtime, "mqtt_client", None)
+    if mqtt_client is not None and getattr(mqtt_client, "broker_host", None):
+        wire = WireObserver(
+            bus,
+            broker_host=mqtt_client.broker_host,
+            broker_port=getattr(mqtt_client, "broker_port", 1883),
+        ).start()
+    app.wire = wire
+
+    orchestrator = getattr(runtime, "orchestrator", None)
+    if orchestrator is not None:
+
+        def announce_plan(intent, actions):
+            bus.emit(
+                "plan",
+                intent=intent,
+                actions=[
+                    {"index": i, "device": a.device_id,
+                     "action": a.action_type.value}
+                    for i, a in enumerate(actions, start=1)
+                ],
+            )
+
+        orchestrator.plan_observer = announce_plan
+
+        # Persistence already listens here. Chain rather than replace,
+        # so recording a commit and displaying it cannot drift apart.
+        previous = orchestrator.action_observer
+
+        def announce_commit(intent, action, result):
+            if previous is not None:
+                previous(intent, action, result)
+            bus.emit(
+                "commit",
+                intent=intent,
+                device=action.device_id,
+                action=action.action_type.value,
+                node=(result or {}).get("node"),
+            )
+
+        orchestrator.action_observer = announce_commit
+
     recording_lock = threading.Lock()
     state = {"recording": False}
 
@@ -125,8 +186,24 @@ def create_app(controller=None, runtime=None):
             if not text:
                 return jsonify({"error": "No speech was detected. Please try again."}), 422
 
+            bus.emit("speech", text=text)
+
             result = controller.recognizer.predict(text)
             result["transcription"] = text
+            result["threshold"] = getattr(
+                controller.recognizer, "similarity_threshold",
+                DEFAULT_SIMILARITY_THRESHOLD,
+            )
+
+            bus.emit(
+                "recognition",
+                decision=result.get("decision"),
+                intent=result.get("intent"),
+                score=result.get("similarity_score"),
+                threshold=result["threshold"],
+                matched=result.get("matched_sentence"),
+                top=result.get("top_results", []),
+            )
 
             # The recognizer picks the best supported intent and reports
             # how confident it was. Deciding whether to run it is the
@@ -218,6 +295,8 @@ def create_app(controller=None, runtime=None):
                 }
             ), 409
 
+        bus.emit("workflow_start", intent=intent)
+
         try:
             results = runtime.execute_intent(intent)
 
@@ -229,6 +308,8 @@ def create_app(controller=None, runtime=None):
 
         except LocationUnknown as error:
             runtime.clear_pending_intent()
+            bus.emit("workflow_end", intent=intent, status="refused",
+                     error=str(error))
             return jsonify(
                 {
                     "status": "location_unknown",
@@ -242,6 +323,8 @@ def create_app(controller=None, runtime=None):
             # The latch is checked again here, not only at prediction
             # time: nothing may slip through between the two.
             runtime.clear_pending_intent()
+            bus.emit("workflow_end", intent=intent, status="blocked",
+                     error=str(error))
             return jsonify(
                 {
                     "status": "blocked",
@@ -266,6 +349,8 @@ def create_app(controller=None, runtime=None):
             # leaves room and mode uncommitted, so the state below is
             # the truthful one to show.
             runtime.clear_pending_intent()
+            bus.emit("workflow_end", intent=intent, status="failed",
+                     error=str(error))
 
             return jsonify(
                 {
@@ -287,6 +372,15 @@ def create_app(controller=None, runtime=None):
             if result.get("status") != "success"
         ]
 
+        bus.emit(
+            "workflow_end",
+            intent=intent,
+            status="degraded" if failed else "executed",
+            executed=len(results),
+            failed=len(failed),
+            state=runtime.state_snapshot(),
+        )
+
         return jsonify(
             {
                 "status": "degraded" if failed else "executed",
@@ -306,6 +400,62 @@ def create_app(controller=None, runtime=None):
                 "state": runtime.state_snapshot(),
             }
         )
+
+    # ==========================================================
+    # LIVE EVENT STREAM
+    # ==========================================================
+
+    @app.get("/api/events")
+    def event_stream():
+        """Server-sent events. `since` resumes after a given sequence
+        number, so a reconnecting client misses nothing."""
+
+        try:
+            since = int(request.args.get("since", 0))
+        except ValueError:
+            since = 0
+
+        def generate(cursor):
+            # Anything the client has not seen yet goes out at once.
+            for event in bus.since(cursor):
+                cursor = event["seq"]
+                yield f"id: {cursor}\ndata: {json.dumps(event)}\n\n"
+
+            while True:
+                fresh = bus.wait_for(cursor, timeout=15.0)
+                if not fresh:
+                    # Keep the connection alive through proxies and
+                    # let the browser know we are still here.
+                    yield ": keepalive\n\n"
+                    continue
+                for event in fresh:
+                    cursor = event["seq"]
+                    yield f"id: {cursor}\ndata: {json.dumps(event)}\n\n"
+
+        return Response(
+            generate(since),
+            mimetype="text/event-stream",
+            headers={"Cache-Control": "no-cache",
+                     "X-Accel-Buffering": "no"},
+        )
+
+    @app.get("/api/events/poll")
+    def event_poll():
+        """Plain polling alternative for clients without SSE."""
+
+        try:
+            since = int(request.args.get("since", 0))
+        except ValueError:
+            since = 0
+        return jsonify({"events": bus.since(since), "latest": bus.latest})
+
+    @app.post("/api/nodes/probe")
+    def probe_nodes():
+        """Which nodes are answering right now. Nothing moves."""
+
+        if wire is None:
+            return jsonify({"nodes": {}, "note": "no broker in this configuration"})
+        return jsonify({"nodes": wire.probe()})
 
     @app.post("/api/intent/cancel")
     def cancel_intent():

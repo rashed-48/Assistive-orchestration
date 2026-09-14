@@ -6,186 +6,219 @@
   <title>Assistive Orchestration</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
-  <main class="shell">
-    <header class="topbar">
-      <a class="brand" href="/" aria-label="Assistive Orchestration home">
-        <span class="brand-mark" aria-hidden="true"><i data-lucide="audio-lines"></i></span>
-        <span>Assistive <b>Orchestration</b></span>
-      </a>
-      <div class="system-status"><span class="status-dot"></span><span>Voice system ready</span></div>
-    </header>
+<div class="app">
 
-    <div id="location-banner" class="location-banner" role="alert" hidden>
-      <i data-lucide="map-pin-off"></i>
+  <!-- ================================================================ -->
+  <!-- HEADER : identity, node liveness, stream health                   -->
+  <!-- ================================================================ -->
+  <header class="top">
+    <div class="brand">
+      <span class="brand-mark"><i data-lucide="audio-lines"></i></span>
       <div>
-        <span id="location-message">The system does not know where you are.</span>
-        <div id="location-actions" class="location-actions"></div>
+        <div class="brand-name">Assistive <b>Orchestration</b></div>
+        <div class="brand-sub">voice &rarr; state-aware plan &rarr; MQTT &rarr; ESP32 &rarr; ack-gated commit</div>
       </div>
     </div>
 
-    <div id="emergency-banner" class="emergency-banner" role="alert" hidden>
-      <i data-lucide="siren"></i>
-      <span>Emergency active. Normal commands are blocked until the emergency is cleared.</span>
+    <div class="nodes" id="nodes">
+      <div class="node" data-node="esp32_a"><span class="node-dot"></span><span class="node-name">esp32_a</span><span class="node-rooms">drawing &middot; relax</span><span class="node-ms" data-ms></span></div>
+      <div class="node" data-node="esp32_b"><span class="node-dot"></span><span class="node-name">esp32_b</span><span class="node-rooms">sleep</span><span class="node-ms" data-ms></span></div>
+      <div class="node" data-node="esp32_c"><span class="node-dot"></span><span class="node-name">esp32_c</span><span class="node-rooms">study &middot; meal</span><span class="node-ms" data-ms></span></div>
     </div>
 
-    <section class="workspace" aria-label="Voice command workspace">
-      <div class="command-panel">
-        <p class="eyebrow">Voice command</p>
-        <h1>Tell us what you need.</h1>
-        <p class="intro">Record a natural-language command and let the system identify the right assistive action.</p>
+    <div class="health">
+      <span class="health-item" id="health-stream"><span class="hdot"></span>event stream</span>
+      <span class="health-item" id="health-mqtt"><span class="hdot"></span>broker</span>
+      <button class="probe-btn" id="probe-btn" title="Ask every node whether it is reachable. Nothing moves."><i data-lucide="radar"></i>probe nodes</button>
+    </div>
+  </header>
 
-        <div class="voice-stage" data-state="idle">
-          <div class="wave-wrap" aria-hidden="true">
-            <span class="wave wave-one"></span><span class="wave wave-two"></span><span class="wave wave-three"></span>
-            <button id="record-button" class="record-button" type="button" aria-label="Start recording">
-              <i data-lucide="mic"></i>
-            </button>
-          </div>
-          <div class="stage-copy">
-            <p id="stage-title">Ready when you are</p>
-            <span id="stage-detail">Select the microphone to begin.</span>
-          </div>
-        </div>
+  <!-- ================================================================ -->
+  <!-- BANNERS : location uncertainty, emergency latch                   -->
+  <!-- ================================================================ -->
+  <div class="banner banner-location" id="banner-location" hidden>
+    <i data-lucide="map-pin-off"></i>
+    <div class="banner-body">
+      <strong>Location is not known.</strong>
+      <span id="location-reason">The system will not act on a room-dependent command until you say where the person is.</span>
+      <div class="room-picks" id="room-picks"></div>
+    </div>
+  </div>
 
-        <div class="transcript-area" aria-live="polite">
-          <span class="field-label">Latest transcription</span>
-          <p id="transcript">Your spoken command will appear here.</p>
+  <div class="banner banner-emergency" id="banner-emergency" hidden>
+    <i data-lucide="siren"></i>
+    <div class="banner-body">
+      <strong>Emergency latched.</strong>
+      <span>Every door is open and the alarm is on. Ordinary commands are refused until the emergency is explicitly cleared &mdash; say <em>"the emergency is over"</em>.</span>
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <!-- MAIN : voice | house | pipeline                                   -->
+  <!-- ================================================================ -->
+  <main class="grid">
+
+    <!-- ---------------- VOICE ---------------- -->
+    <section class="panel panel-voice">
+      <div class="panel-head"><i data-lucide="mic"></i><h2>Voice</h2><span class="panel-hint">faster-whisper &middot; offline</span></div>
+
+      <div class="mic-stage">
+        <button class="mic" id="mic" aria-label="Hold to speak">
+          <span class="ring r1"></span><span class="ring r2"></span><span class="ring r3"></span>
+          <i data-lucide="mic"></i>
+        </button>
+        <div class="mic-copy">
+          <p id="mic-title">Hold to speak</p>
+          <span id="mic-detail">Release to transcribe and recognise</span>
         </div>
       </div>
 
-      <aside class="analysis-panel" aria-live="polite">
-        <div class="panel-header">
-          <div>
-            <p class="eyebrow">Intent analysis</p>
-            <h2>Command result</h2>
-          </div>
-          <span id="decision-pill" class="decision-pill idle">Waiting</span>
+      <div class="transcript">
+        <label>transcript</label>
+        <p id="transcript" class="empty">&mdash;</p>
+      </div>
+
+      <div class="recog" id="recog">
+        <label>intent recognition <span class="panel-hint">all-MiniLM-L6-v2 &middot; cosine &middot; max over references</span></label>
+        <div class="recog-main">
+          <div class="recog-intent" id="recog-intent">&mdash;</div>
+          <div class="recog-decision" id="recog-decision"></div>
         </div>
-
-        <div id="result-empty" class="empty-result">
-          <i data-lucide="scan-line"></i>
-          <p>Analysis details will appear after a voice command.</p>
+        <div class="score">
+          <div class="score-track">
+            <div class="score-fill" id="score-fill"></div>
+            <div class="score-threshold" id="score-threshold"><span>&tau;</span></div>
+          </div>
+          <div class="score-labels"><span id="score-value">similarity &mdash;</span><span id="score-tau">threshold &mdash;</span></div>
         </div>
+        <div class="top3" id="top3"></div>
+        <div class="matched" id="matched"></div>
+      </div>
 
-        <div id="result-content" class="result-content" hidden>
-          <div class="intent-highlight">
-            <span class="field-label">Recognized intent</span>
-            <strong id="intent-name">--</strong>
-            <p id="result-message"></p>
-          </div>
-
-          <div class="metrics">
-            <div><span>Similarity</span><b id="similarity-score">--</b></div>
-            <div><span>Closest phrase</span><b id="matched-sentence" class="matched-sentence">--</b></div>
-          </div>
-
-          <div id="confirm-bar" class="confirm-bar" hidden>
-            <span class="field-label">Run this command?</span>
-            <div class="confirm-actions">
-              <button id="confirm-button" class="btn btn-primary" type="button">Confirm</button>
-              <button id="cancel-button" class="btn btn-ghost" type="button">Cancel</button>
-            </div>
-          </div>
-
-          <div id="execution" class="execution" hidden>
-            <span class="field-label">Workflow result</span>
-            <p id="execution-summary"></p>
-            <ol id="execution-actions"></ol>
-          </div>
-
-          <div class="alternatives">
-            <span class="field-label">Best matches</span>
-            <ol id="top-results"></ol>
-          </div>
+      <div class="confirm" id="confirm" hidden>
+        <p>Run <b id="confirm-intent"></b>?</p>
+        <div class="confirm-btns">
+          <button class="btn primary" id="confirm-yes"><i data-lucide="check"></i>Confirm</button>
+          <button class="btn" id="confirm-no"><i data-lucide="x"></i>Cancel</button>
         </div>
-      </aside>
+        <span class="panel-hint">Nothing executes without confirmation. The system proposes; the person decides.</span>
+      </div>
+
+      <div class="message" id="message" hidden></div>
+
+      <div class="statebox">
+        <label>logical state</label>
+        <div class="kv"><span>room</span><b id="st-room">&mdash;</b></div>
+        <div class="kv"><span>mode</span><b id="st-mode">&mdash;</b></div>
+        <div class="kv"><span>location</span><b id="st-loc">&mdash;</b></div>
+        <div class="kv"><span>emergency</span><b id="st-emg">&mdash;</b></div>
+      </div>
     </section>
 
-    <section class="state-panel" aria-label="Environment state" aria-live="polite">
-      <div class="panel-header">
-        <div>
-          <p class="eyebrow">Authoritative state</p>
-          <h2>The house</h2>
-        </div>
-        <div class="panel-pills">
-          <span id="replay-pill" class="decision-pill idle" hidden>Replaying</span>
-          <span id="mqtt-pill" class="decision-pill idle">MQTT</span>
-        </div>
-      </div>
+    <!-- ---------------- HOUSE ---------------- -->
+    <section class="panel panel-house">
+      <div class="panel-head"><i data-lucide="home"></i><h2>Environment</h2><span class="panel-hint">device state as committed from node acknowledgements</span></div>
 
-      <!-- Floor plan. Every room is reached through the Drawing Room, so the
-           layout mirrors the topology the TransitionBuilder actually uses. -->
       <div id="house" class="house">
         <div class="room outside" data-room="OUTSIDE">
           <span class="room-name">Outside</span>
           <span class="person" data-person="OUTSIDE"><i data-lucide="user"></i></span>
         </div>
-
-        <div class="door door-exit" data-device="exit_door" title="exit_door">
-          <i data-lucide="door-closed"></i><span>exit</span>
-        </div>
+        <div class="door exitdoor" data-device="exit_door" style="grid-area:exit"></div>
 
         <div class="room" data-room="STUDY_ROOM" style="grid-area:study">
-          <span class="room-name">Study</span>
+          <span class="room-name">Study <em>esp32_c</em></span>
           <div class="devices" data-devices="study"></div>
           <span class="person" data-person="STUDY_ROOM"><i data-lucide="user"></i></span>
         </div>
-
         <div class="room" data-room="RELAX_ROOM" style="grid-area:relax">
-          <span class="room-name">Relax</span>
+          <span class="room-name">Relax <em>esp32_a</em></span>
           <div class="devices" data-devices="relax"></div>
           <span class="person" data-person="RELAX_ROOM"><i data-lucide="user"></i></span>
         </div>
-
         <div class="room drawing" data-room="DRAWING_ROOM" style="grid-area:drawing">
-          <span class="room-name">Drawing room <em>transition area</em></span>
+          <span class="room-name">Drawing room <em>esp32_a &middot; transition area</em></span>
           <div class="devices" data-devices="drawing"></div>
           <span class="person" data-person="DRAWING_ROOM"><i data-lucide="user"></i></span>
         </div>
-
         <div class="room" data-room="SLEEP_ROOM" style="grid-area:sleep">
-          <span class="room-name">Sleep</span>
+          <span class="room-name">Sleep <em>esp32_b</em></span>
           <div class="devices" data-devices="sleep"></div>
           <span class="person" data-person="SLEEP_ROOM"><i data-lucide="user"></i></span>
         </div>
-
         <div class="room" data-room="MEAL_ROOM" style="grid-area:meal">
-          <span class="room-name">Meal</span>
+          <span class="room-name">Meal <em>esp32_c</em></span>
           <div class="devices" data-devices="meal"></div>
           <span class="person" data-person="MEAL_ROOM"><i data-lucide="user"></i></span>
         </div>
 
-        <div class="door" data-device="study_door" style="grid-area:dstudy" title="study_door">
-          <i data-lucide="door-closed"></i>
-        </div>
-        <div class="door" data-device="relax_door" style="grid-area:drelax" title="relax_door">
-          <i data-lucide="door-closed"></i>
-        </div>
-        <div class="door" data-device="sleep_door" style="grid-area:dsleep" title="sleep_door">
-          <i data-lucide="door-closed"></i>
-        </div>
-        <div class="door" data-device="meal_door" style="grid-area:dmeal" title="meal_door">
-          <i data-lucide="door-closed"></i>
-        </div>
+        <div class="door" data-device="study_door" style="grid-area:d-study"></div>
+        <div class="door" data-device="relax_door" style="grid-area:d-relax"></div>
+        <div class="door" data-device="sleep_door" style="grid-area:d-sleep"></div>
+        <div class="door" data-device="meal_door"  style="grid-area:d-meal"></div>
       </div>
 
-      <div class="house-foot">
-        <div id="house-caption" class="house-caption">Live environment state.</div>
-        <div class="legend">
-          <span><b class="sw on"></b>active</span>
-          <span><b class="sw"></b>off / closed</span>
-          <span><b class="sw fire"></b>acting now</span>
-        </div>
+      <div class="legend">
+        <span><i class="lg lg-idle"></i>idle</span>
+        <span><i class="lg lg-sent"></i>command on the wire</span>
+        <span><i class="lg lg-ack"></i>node acknowledged</span>
+        <span><i class="lg lg-done"></i>hardware acted &middot; state committed</span>
+        <span><i class="lg lg-fail"></i>failed &middot; not committed</span>
       </div>
     </section>
 
-    <footer>Local voice processing · Faster Whisper + semantic intent recognition</footer>
+    <!-- ---------------- PIPELINE ---------------- -->
+    <section class="panel panel-pipe">
+      <div class="panel-head"><i data-lucide="workflow"></i><h2>Pipeline</h2><span class="panel-hint">live &middot; from the event stream</span></div>
+
+      <ol class="stages" id="stages">
+        <li class="stage" data-stage="speech">
+          <div class="stage-head"><span class="stage-num">1</span><span class="stage-name">Speech</span><span class="stage-meta" data-meta></span></div>
+          <div class="stage-body" data-body><span class="muted">waiting for audio</span></div>
+        </li>
+        <li class="stage" data-stage="recognition">
+          <div class="stage-head"><span class="stage-num">2</span><span class="stage-name">Recognition</span><span class="stage-meta" data-meta></span></div>
+          <div class="stage-body" data-body><span class="muted">embed &rarr; compare with 313 references &rarr; max per intent &rarr; threshold</span></div>
+        </li>
+        <li class="stage" data-stage="plan">
+          <div class="stage-head"><span class="stage-num">3</span><span class="stage-name">Plan</span><span class="stage-meta" data-meta></span></div>
+          <div class="stage-body" data-body><span class="muted">state-conditioned expansion: room, mode, location, emergency latch</span></div>
+        </li>
+        <li class="stage" data-stage="execute">
+          <div class="stage-head"><span class="stage-num">4</span><span class="stage-name">Execute</span><span class="stage-meta" data-meta></span></div>
+          <div class="stage-body" data-body>
+            <div class="exec-legend"><span></span><span>sent</span><span>ack</span><span>done</span><span>commit</span></div>
+            <ol class="actions" id="actions"></ol>
+          </div>
+        </li>
+        <li class="stage" data-stage="commit">
+          <div class="stage-head"><span class="stage-num">5</span><span class="stage-name">Commit</span><span class="stage-meta" data-meta></span></div>
+          <div class="stage-body" data-body><span class="muted">device state per acknowledged action; room and mode only after the whole workflow</span></div>
+        </li>
+      </ol>
+    </section>
   </main>
-  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
-  <script src="{{ url_for('static', filename='app.js') }}"></script>
+
+  <!-- ================================================================ -->
+  <!-- WIRE : raw MQTT trace                                             -->
+  <!-- ================================================================ -->
+  <section class="panel panel-wire">
+    <div class="panel-head">
+      <i data-lucide="activity"></i><h2>Wire</h2>
+      <span class="panel-hint">every MQTT message on <code>assistive/#</code>, observed by an independent subscriber &middot; QoS 1</span>
+      <button class="btn small" id="wire-clear">clear</button>
+    </div>
+    <div class="wire-head"><span>t</span><span>phase</span><span>node</span><span>device</span><span>action</span><span>command_id</span><span>&Delta; from send</span><span>&Delta; from ack</span><span>note</span></div>
+    <div class="wire" id="wire"></div>
+  </section>
+
+</div>
+
+<script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 </html>

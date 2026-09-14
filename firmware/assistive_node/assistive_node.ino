@@ -122,6 +122,11 @@ struct Device {
   uint8_t pin;
   int restAngle;     // servos: closed / normal
   int activeAngle;   // servos: open / ready
+                     // Doors rest at 90, mid-travel, and open toward
+                     // 180. Resting in the middle means the direction
+                     // can be flipped by changing only the active angle
+                     // (0 or 180) without touching the arm - and a door
+                     // pushed by hand does not strain an end-stop.
   bool wired;        // false = nothing on this pin; answer "error"
 };
 
@@ -129,22 +134,22 @@ Device DEVICES[] = {
 #if NODE_SELECT == 1
   { "drawing_light",     RELAY_LIGHT,  23,   0,   0, true },
   { "relax_light",       RELAY_LIGHT,  22,   0,   0, true },
-  { "relax_tv",          SERVO_TV,     21,   0,  90, true },
+  { "relax_tv",          SERVO_TV,     21,   0,  50, true },
   { "buzzer",            BUZZER,       19,   0,   0, true },
-  { "exit_door",         SERVO_DOOR,   18,   0,  90, true },
-  { "relax_door",        SERVO_DOOR,    5,   0,  90, true },
+  { "exit_door",         SERVO_DOOR,   18,  90, 180, true },
+  { "relax_door",        SERVO_DOOR,    5,  90, 180, true },
 #elif NODE_SELECT == 3
   { "study_light",       RELAY_LIGHT,  23,   0,   0, true },
   { "meal_light",        RELAY_LIGHT,  22,   0,   0, true },
-  { "study_door",        SERVO_DOOR,   18,   0,  90, true },
-  { "meal_door",         SERVO_DOOR,    5,   0,  90, true },
-  { "study_table",       SERVO_TABLE,  17,   0,  60, true },
-  { "meal_table",        SERVO_TABLE,  16,   0,  60, true },
+  { "study_door",        SERVO_DOOR,   18,  90, 180, true },
+  { "meal_door",         SERVO_DOOR,    5,  90, 180, true },
+  { "study_table",       SERVO_TABLE,  17,  90, 150, true },
+  { "meal_table",        SERVO_TABLE,  16,  90,  30, true },
 #else   /* 2 - esp32_b, the default */
   { "sleep_light",       RELAY_LIGHT,  23,   0,   0, true },
-  { "sleep_door",        SERVO_DOOR,   18,   0,  90, true },
-  { "sleep_bed",         SERVO_BED,    17,   0,  45, true },
-  { "medication_servo",  SERVO_MED,    16,   0,  80, true },
+  { "sleep_door",        SERVO_DOOR,   18,  90, 180, true },
+  { "sleep_bed",         SERVO_BED,    17,  90, 135, true },
+  { "medication_servo",  SERVO_MED,    16,  90,  10, true },
 #endif
 };
 
